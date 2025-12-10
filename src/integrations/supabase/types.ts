@@ -24,7 +24,9 @@ export type Database = {
           id: string
           opened_at: string | null
           opening_balance: number
+          operator_name: string | null
           pix_sales: number | null
+          register_name: string | null
           status: string | null
           user_id: string
           withdrawals: number | null
@@ -38,7 +40,9 @@ export type Database = {
           id?: string
           opened_at?: string | null
           opening_balance: number
+          operator_name?: string | null
           pix_sales?: number | null
+          register_name?: string | null
           status?: string | null
           user_id: string
           withdrawals?: number | null
@@ -52,7 +56,9 @@ export type Database = {
           id?: string
           opened_at?: string | null
           opening_balance?: number
+          operator_name?: string | null
           pix_sales?: number | null
+          register_name?: string | null
           status?: string | null
           user_id?: string
           withdrawals?: number | null

@@ -17,6 +17,8 @@ export const generateReceiptPDF = (
     payment_method: string;
     created_at: string;
     customer_name?: string;
+    register_name?: string;
+    operator_name?: string;
   },
   companyName: string = 'TechControl PDV'
 ) => {
@@ -54,8 +56,12 @@ export const generateReceiptPDF = (
   doc.text(`Data: ${format(new Date(sale.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 5, y);
   y += 4;
 
-  if (sale.customer_name) {
-    doc.text(`Cliente: ${sale.customer_name}`, 5, y);
+  // Caixa info instead of cliente
+  if (sale.register_name || sale.operator_name) {
+    const caixaInfo = sale.operator_name 
+      ? `${sale.register_name || 'Caixa'} | ${sale.operator_name}`
+      : sale.register_name || 'Caixa';
+    doc.text(`Caixa: ${caixaInfo}`, 5, y);
     y += 4;
   }
 
@@ -73,7 +79,6 @@ export const generateReceiptPDF = (
   // Items
   doc.setFont('helvetica', 'normal');
   sale.items.forEach((item) => {
-    // Product name (may wrap)
     const name = item.product_name.length > 20 
       ? item.product_name.substring(0, 20) + '...' 
       : item.product_name;
@@ -135,6 +140,185 @@ export const generateReceiptPDF = (
   return doc;
 };
 
+// Cash Register Closing Report PDF
+export const generateCashRegisterClosingPDF = (
+  register: {
+    id: string;
+    register_name: string;
+    operator_name?: string;
+    opening_balance: number;
+    closing_balance: number;
+    cash_sales: number;
+    card_sales: number;
+    pix_sales: number;
+    deposits: number;
+    withdrawals: number;
+    opened_at: string;
+    closed_at: string;
+  },
+  sales: Array<{
+    id: string;
+    created_at: string;
+    total: number;
+    payment_method: string;
+    items: Array<{ product_name: string; quantity: number; total_price: number }>;
+  }>,
+  companyName: string = 'TechControl PDV'
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 15;
+
+  // Header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(14);
+  doc.text('Relatório de Fechamento de Caixa', pageWidth / 2, y, { align: 'center' });
+  y += 10;
+
+  // Register info box
+  doc.setFillColor(0, 150, 136);
+  doc.rect(14, y, pageWidth - 28, 20, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(12);
+  const caixaTitle = register.operator_name 
+    ? `${register.register_name} | ${register.operator_name}`
+    : register.register_name;
+  doc.text(caixaTitle, pageWidth / 2, y + 8, { align: 'center' });
+  doc.setFontSize(9);
+  doc.text(`ID: ${register.id.substring(0, 8).toUpperCase()}`, pageWidth / 2, y + 15, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+  y += 28;
+
+  // Period info
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Abertura: ${format(new Date(register.opened_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 14, y);
+  y += 5;
+  doc.text(`Fechamento: ${format(new Date(register.closed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 14, y);
+  y += 10;
+
+  // Summary box
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.rect(14, y, pageWidth - 28, 45);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Resumo Financeiro', 20, y + 8);
+  doc.setFont('helvetica', 'normal');
+  
+  const col1 = 20;
+  const col2 = pageWidth / 2;
+  let summaryY = y + 16;
+  
+  doc.text('Saldo Inicial:', col1, summaryY);
+  doc.text(formatCurrency(register.opening_balance), col1 + 50, summaryY);
+  
+  doc.text('Suprimentos:', col2, summaryY);
+  doc.text(formatCurrency(register.deposits), col2 + 40, summaryY);
+  summaryY += 6;
+  
+  doc.text('Vendas Dinheiro:', col1, summaryY);
+  doc.text(formatCurrency(register.cash_sales), col1 + 50, summaryY);
+  
+  doc.text('Sangrias:', col2, summaryY);
+  doc.text(formatCurrency(register.withdrawals), col2 + 40, summaryY);
+  summaryY += 6;
+  
+  doc.text('Vendas Cartão:', col1, summaryY);
+  doc.text(formatCurrency(register.card_sales), col1 + 50, summaryY);
+  
+  doc.text('Vendas PIX:', col2, summaryY);
+  doc.text(formatCurrency(register.pix_sales), col2 + 40, summaryY);
+  summaryY += 8;
+  
+  doc.setFont('helvetica', 'bold');
+  const totalSales = register.cash_sales + register.card_sales + register.pix_sales;
+  const expectedBalance = register.opening_balance + register.cash_sales + register.deposits - register.withdrawals;
+  
+  doc.text('Total Vendas:', col1, summaryY);
+  doc.setTextColor(0, 150, 0);
+  doc.text(formatCurrency(totalSales), col1 + 50, summaryY);
+  doc.setTextColor(0, 0, 0);
+  
+  doc.text('Saldo Esperado:', col2, summaryY);
+  doc.text(formatCurrency(expectedBalance), col2 + 40, summaryY);
+  
+  y += 50;
+  
+  // Closing balance comparison
+  const difference = register.closing_balance - expectedBalance;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Saldo Final Conferido:', 14, y);
+  doc.text(formatCurrency(register.closing_balance), pageWidth - 14, y, { align: 'right' });
+  y += 6;
+  
+  if (difference !== 0) {
+    doc.text('Diferença:', 14, y);
+    doc.setTextColor(difference > 0 ? 0 : 255, difference > 0 ? 150 : 0, 0);
+    doc.text(`${difference > 0 ? '+' : ''}${formatCurrency(difference)}`, pageWidth - 14, y, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+  }
+  y += 12;
+  
+  // Sales list
+  if (sales.length > 0) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vendas do Período:', 14, y);
+    y += 4;
+    
+    const paymentLabels: Record<string, string> = {
+      dinheiro: 'Dinheiro',
+      cartao_credito: 'Crédito',
+      cartao_debito: 'Débito',
+      pix: 'PIX',
+      'dinheiro_cartao': 'Din+Cart',
+      'pix_cartao': 'PIX+Cart',
+    };
+    
+    autoTable(doc, {
+      startY: y,
+      head: [['Hora', 'Venda', 'Itens', 'Pagamento', 'Total']],
+      body: sales.map(sale => [
+        format(new Date(sale.created_at), "HH:mm", { locale: ptBR }),
+        `#${sale.id.substring(0, 6)}`,
+        sale.items.reduce((sum, i) => sum + i.quantity, 0).toString(),
+        paymentLabels[sale.payment_method] || sale.payment_method,
+        formatCurrency(sale.total),
+      ]),
+      theme: 'striped',
+      headStyles: {
+        fillColor: [0, 150, 136],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30, halign: 'right' },
+      },
+    });
+    
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // Footer
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Sistema desenvolvido por TechControl - WhatsApp: (11) 95661-4601', pageWidth / 2, y, { align: 'center' });
+
+  return doc;
+};
+
 export const generateInvoicePDF = (
   invoice: Invoice & { items?: { product_name: string; quantity: number; unit_price: number; total_price: number }[] },
   companySettings?: {
@@ -167,7 +351,6 @@ export const generateInvoicePDF = (
     y += 5;
   }
 
-  // Invoice type and number
   y += 5;
   doc.setFillColor(0, 150, 136);
   doc.rect(14, y, pageWidth - 28, 12, 'F');
@@ -183,7 +366,6 @@ export const generateInvoicePDF = (
   doc.setTextColor(0, 0, 0);
   y += 20;
 
-  // Invoice details
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
@@ -205,7 +387,6 @@ export const generateInvoicePDF = (
   }
   y += 6;
 
-  // Access key
   if (invoice.access_key) {
     y += 4;
     doc.setFontSize(8);
@@ -217,7 +398,6 @@ export const generateInvoicePDF = (
     y += 8;
   }
 
-  // Customer info
   if (invoice.customer_cpf) {
     doc.setFontSize(10);
     doc.text('CPF/CNPJ do Cliente:', leftCol, y);
@@ -225,7 +405,6 @@ export const generateInvoicePDF = (
     y += 8;
   }
 
-  // Items table
   if (invoice.items && invoice.items.length > 0) {
     autoTable(doc, {
       startY: y,
@@ -242,9 +421,7 @@ export const generateInvoicePDF = (
         textColor: 255,
         fontStyle: 'bold',
       },
-      styles: {
-        fontSize: 9,
-      },
+      styles: { fontSize: 9 },
       columnStyles: {
         0: { cellWidth: 80 },
         1: { cellWidth: 20, halign: 'center' },
@@ -256,7 +433,6 @@ export const generateInvoicePDF = (
     y = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  // Totals
   const totalsX = pageWidth - 70;
   doc.setFontSize(10);
   
@@ -278,13 +454,11 @@ export const generateInvoicePDF = (
   doc.text(formatCurrency(invoice.total_invoice), pageWidth - 20, y, { align: 'right' });
   y += 10;
 
-  // Taxes
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(`ICMS: ${formatCurrency(invoice.icms_value)} | PIS: ${formatCurrency(invoice.pis_value)} | COFINS: ${formatCurrency(invoice.cofins_value)}`, pageWidth / 2, y, { align: 'center' });
   y += 10;
 
-  // Footer
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
   doc.text('Sistema desenvolvido por TechControl - WhatsApp: (11) 95661-4601', pageWidth / 2, y, { align: 'center' });
@@ -302,7 +476,6 @@ export const generateStockPDF = (
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
 
-  // Header
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text(companyName, pageWidth / 2, y, { align: 'center' });
@@ -317,7 +490,6 @@ export const generateStockPDF = (
   doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth / 2, y, { align: 'center' });
   y += 10;
 
-  // Table
   autoTable(doc, {
     startY: y,
     head: [['Produto', 'Código', 'Estoque', 'Mínimo', 'Preço Venda', 'Valor em Estoque']],
@@ -335,9 +507,7 @@ export const generateStockPDF = (
       textColor: 255,
       fontStyle: 'bold',
     },
-    styles: {
-      fontSize: 8,
-    },
+    styles: { fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 50 },
       1: { cellWidth: 30 },
@@ -350,7 +520,6 @@ export const generateStockPDF = (
 
   y = (doc as any).lastAutoTable.finalY + 10;
 
-  // Summary
   const totalItems = products.reduce((sum, p) => sum + p.stock_quantity, 0);
   const totalValue = products.reduce((sum, p) => sum + ((Number(p.sale_price) || 0) * p.stock_quantity), 0);
   const lowStockCount = products.filter(p => p.stock_quantity <= p.min_stock).length;
@@ -368,7 +537,6 @@ export const generateStockPDF = (
   doc.text(`Produtos com Estoque Baixo: ${lowStockCount}`, pageWidth / 2, y);
   y += 10;
 
-  // Footer
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
   doc.text('Sistema desenvolvido por TechControl - WhatsApp: (11) 95661-4601', pageWidth / 2, y, { align: 'center' });
@@ -390,7 +558,6 @@ export const generateSalesReportPDF = (
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 15;
 
-  // Header
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text(companyName, pageWidth / 2, y, { align: 'center' });
@@ -405,7 +572,6 @@ export const generateSalesReportPDF = (
   doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth / 2, y, { align: 'center' });
   y += 10;
 
-  // Sales table
   const paymentLabels: Record<string, string> = {
     dinheiro: 'Dinheiro',
     cartao_credito: 'Crédito',
@@ -431,9 +597,7 @@ export const generateSalesReportPDF = (
       textColor: 255,
       fontStyle: 'bold',
     },
-    styles: {
-      fontSize: 8,
-    },
+    styles: { fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 35 },
       1: { cellWidth: 30 },
@@ -445,7 +609,6 @@ export const generateSalesReportPDF = (
 
   y = (doc as any).lastAutoTable.finalY + 10;
 
-  // Summary
   const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
   const totalItems = sales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
 
@@ -462,7 +625,6 @@ export const generateSalesReportPDF = (
   doc.text(`Valor Total: ${formatCurrency(totalSales)}`, 14, y);
   y += 10;
 
-  // Footer
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);

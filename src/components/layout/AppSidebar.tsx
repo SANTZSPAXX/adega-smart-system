@@ -14,7 +14,8 @@ import {
   ArrowUpDown,
   Store,
   UserCog,
-  FileText
+  FileText,
+  Percent
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,8 +28,10 @@ const navItems = [
   { title: 'Estoque', url: '/stock', icon: ArrowUpDown },
   { title: 'Clientes', url: '/customers', icon: Users },
   { title: 'Notas Fiscais', url: '/invoices', icon: FileText },
+  { title: 'Descontos', url: '/discounts', icon: Percent },
   { title: 'Financeiro', url: '/financial', icon: Wallet },
   { title: 'Relatórios', url: '/reports', icon: BarChart3 },
+  { title: 'Configurações', url: '/settings', icon: Settings },
 ];
 
 const adminItems = [

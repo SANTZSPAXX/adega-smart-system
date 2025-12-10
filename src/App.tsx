@@ -15,7 +15,8 @@ const PDV = lazy(() => import("./pages/PDV"));
 const Products = lazy(() => import("./pages/Products"));
 const Stock = lazy(() => import("./pages/Stock"));
 const Customers = lazy(() => import("./pages/Customers"));
-const Invoices = lazy(() => import("./pages/Invoices"));
+const SalesHistory = lazy(() => import("./pages/SalesHistory"));
+const CashRegister = lazy(() => import("./pages/CashRegister"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Discounts = lazy(() => import("./pages/Discounts"));
@@ -69,7 +70,8 @@ function AppRoutes() {
         <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
         <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
         <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="/sales-history" element={<ProtectedRoute><SalesHistory /></ProtectedRoute>} />
+        <Route path="/cash-register" element={<ProtectedRoute><CashRegister /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/discounts" element={<ProtectedRoute><Discounts /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />

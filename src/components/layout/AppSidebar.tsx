@@ -13,7 +13,9 @@ import {
   Store,
   UserCog,
   FileText,
-  Percent
+  Percent,
+  Wallet,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,10 +25,11 @@ import { supabase } from '@/integrations/supabase/client';
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
+  { title: 'Caixa', url: '/cash-register', icon: Wallet },
+  { title: 'Histórico Vendas', url: '/sales-history', icon: History },
   { title: 'Produtos', url: '/products', icon: Package },
   { title: 'Estoque', url: '/stock', icon: ArrowUpDown },
   { title: 'Clientes', url: '/customers', icon: Users },
-  { title: 'Notas Fiscais', url: '/invoices', icon: FileText },
   { title: 'Descontos', url: '/discounts', icon: Percent },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ];

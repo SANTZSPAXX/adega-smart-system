@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MessageCircle } from 'lucide-react';
+import { Loader2, MessageCircle, Chrome } from 'lucide-react';
 import { z } from 'zod';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
+import { Separator } from '@/components/ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -38,6 +39,25 @@ export default function Auth() {
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+    
+    if (error) {
+      toast({
+        title: 'Erro ao entrar com Google',
+        description: error.message,
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,6 +192,25 @@ export default function Auth() {
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
                   </Button>
 
+                  <div className="relative my-4">
+                    <Separator />
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                      ou
+                    </span>
+                  </div>
+
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                  >
+                    <Chrome className="h-5 w-5 mr-2" />
+                    Entrar com Google
+                  </Button>
+
                   {/* Forgot Password */}
                   <div className="text-center pt-2">
                     <a 
@@ -235,6 +274,25 @@ export default function Auth() {
                   </div>
                   <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Conta'}
+                  </Button>
+
+                  <div className="relative my-4">
+                    <Separator />
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                      ou
+                    </span>
+                  </div>
+
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                  >
+                    <Chrome className="h-5 w-5 mr-2" />
+                    Cadastrar com Google
                   </Button>
                 </form>
               </TabsContent>

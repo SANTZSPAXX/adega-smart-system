@@ -1,97 +1,12 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { CheckCircle, Loader2, MessageCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { MessageCircle } from "lucide-react";
 import techcontrolLogo from "@/assets/techcontrol-logo.png";
-import { z } from "zod";
-
-const emailSchema = z.string().email("Email inválido");
 
 const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [showTrialDialog, setShowTrialDialog] = useState(false);
-  const [trialEmail, setTrialEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [trialSuccess, setTrialSuccess] = useState(false);
-  const [emailError, setEmailError] = useState("");
-
-  const handleStartTrial = async () => {
-    setEmailError("");
-    
-    const validation = emailSchema.safeParse(trialEmail);
-    if (!validation.success) {
-      setEmailError(validation.error.errors[0].message);
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + 30);
-      
-      const tempPassword = `trial_${Date.now()}`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email: trialEmail,
-        password: tempPassword,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: "Usuário Trial",
-            is_trial: true
-          }
-        }
-      });
-
-      if (error) {
-        if (error.message.includes("already registered")) {
-          toast({
-            title: "Email já cadastrado",
-            description: "Este email já possui uma conta. Faça login normalmente.",
-            variant: "destructive"
-          });
-        } else {
-          throw error;
-        }
-        setLoading(false);
-        return;
-      }
-
-      if (data.user) {
-        await supabase.from('profiles').update({
-          expires_at: expirationDate.toISOString(),
-          full_name: "Usuário Trial"
-        }).eq('id', data.user.id);
-      }
-
-      setTrialSuccess(true);
-      toast({
-        title: "Teste ativado!",
-        description: "Você tem 30 dias de acesso gratuito."
-      });
-
-      setTimeout(() => {
-        navigate('/auth');
-      }, 2000);
-
-    } catch (error: any) {
-      toast({
-        title: "Erro ao criar teste",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1929] via-[#0d2137] to-[#0a1929] relative overflow-hidden">
@@ -122,23 +37,14 @@ const Index = () => {
           <p className="text-lg text-[#4dd0e1]/80 tracking-widest uppercase">Sistema de Gestão Comercial</p>
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* Action Button */}
+        <div className="flex justify-center">
           <Button 
             size="lg" 
             onClick={() => navigate('/auth')}
             className="bg-gradient-to-r from-[#1e88e5] to-[#4dd0e1] hover:from-[#1565c0] hover:to-[#26c6da] text-white font-semibold px-10 py-6 text-lg rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl transition-all duration-300"
           >
             Acessar Sistema
-          </Button>
-          
-          <Button 
-            size="lg" 
-            variant="outline"
-            onClick={() => setShowTrialDialog(true)}
-            className="border-[#4dd0e1] text-[#4dd0e1] hover:bg-[#4dd0e1]/10 font-semibold px-10 py-6 text-lg rounded-xl transition-all duration-300"
-          >
-            Testar 30 Dias Grátis
           </Button>
         </div>
         
@@ -161,56 +67,6 @@ const Index = () => {
       <div className="absolute bottom-6 text-center text-white/40 text-sm">
         <p>© 2024 TechControl - Todos os direitos reservados</p>
       </div>
-
-      {/* Trial Dialog */}
-      <Dialog open={showTrialDialog} onOpenChange={setShowTrialDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Teste Grátis por 30 Dias
-            </DialogTitle>
-            <DialogDescription>
-              Insira seu email para iniciar seu período de teste gratuito. Após 30 dias, entre em contato para continuar usando.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {trialSuccess ? (
-            <div className="py-8 text-center space-y-4">
-              <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-              <div>
-                <h3 className="text-lg font-semibold">Teste Ativado!</h3>
-                <p className="text-muted-foreground">Você será redirecionado para o login...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <Input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={trialEmail}
-                  onChange={(e) => {
-                    setTrialEmail(e.target.value);
-                    setEmailError("");
-                  }}
-                  className={emailError ? "border-destructive" : ""}
-                />
-                {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
-              </div>
-              
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowTrialDialog(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleStartTrial} disabled={loading || !trialEmail}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Iniciar Teste Grátis
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

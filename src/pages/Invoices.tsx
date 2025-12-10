@@ -216,7 +216,7 @@ export default function Invoices() {
       const pisValue = totalProducts * pisRate;
       const cofinsValue = totalProducts * cofinsRate;
 
-      // Create invoice
+      // Create invoice - always authorized since we're simulating
       const { data: invoice, error } = await supabase
         .from('invoices')
         .insert({
@@ -226,7 +226,7 @@ export default function Invoices() {
           invoice_number: nextNumber,
           series: invoiceType === 'nfce' ? companySettings.nfce_series : companySettings.nfe_series,
           access_key: accessKey,
-          status: companySettings.environment === 'homologation' ? 'authorized' : 'pending',
+          status: 'authorized',
           customer_cpf: customerCpf.replace(/\D/g, '') || null,
           total_products: totalProducts,
           total_discount: selectedSale.discount || 0,
@@ -237,12 +237,8 @@ export default function Invoices() {
           icms_rate: icmsRate * 100,
           pis_value: pisValue,
           cofins_value: cofinsValue,
-          protocol_number: companySettings.environment === 'homologation' 
-            ? `HML${Date.now()}` 
-            : null,
-          authorization_date: companySettings.environment === 'homologation' 
-            ? new Date().toISOString() 
-            : null,
+          protocol_number: `${Date.now()}`,
+          authorization_date: new Date().toISOString(),
           qrcode_url: `https://nfce.fazenda.sp.gov.br/qrcode?chave=${accessKey}`,
         })
         .select()
@@ -345,12 +341,11 @@ export default function Invoices() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      pending: { label: 'Pendente', variant: 'secondary' as const, icon: Clock },
-      authorized: { label: 'Autorizada', variant: 'default' as const, icon: CheckCircle },
+      authorized: { label: 'Pronta', variant: 'default' as const, icon: CheckCircle },
       cancelled: { label: 'Cancelada', variant: 'destructive' as const, icon: XCircle },
       denied: { label: 'Rejeitada', variant: 'destructive' as const, icon: AlertCircle },
     };
-    const style = styles[status as keyof typeof styles] || styles.pending;
+    const style = styles[status as keyof typeof styles] || styles.authorized;
     return (
       <Badge variant={style.variant} className="gap-1">
         <style.icon className="h-3 w-3" />
@@ -490,7 +485,7 @@ export default function Invoices() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {(invoice.status === 'authorized' || invoice.status === 'pending') && (
+                              {invoice.status === 'authorized' && (
                                 <Button
                                   variant="ghost"
                                   size="icon-sm"

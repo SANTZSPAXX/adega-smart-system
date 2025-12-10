@@ -9,10 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart3, FileSpreadsheet, TrendingUp, Package, Users, DollarSign, Download } from 'lucide-react';
+import { BarChart3, FileSpreadsheet, TrendingUp, Package, Users, DollarSign, Download, FileText } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { utils, writeFile } from 'xlsx';
+import { generateSalesReportPDF, downloadPDF } from '@/utils/pdfGenerator';
 
 export default function Reports() {
   const { user } = useAuth();
@@ -358,19 +359,46 @@ export default function Reports() {
             <Card>
               <CardHeader><CardTitle>Exportar Dados</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-muted-foreground">Exporte seus dados para planilhas Excel.</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <p className="text-muted-foreground">Exporte seus dados para planilhas Excel ou PDF.</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <Button onClick={exportSales} variant="outline" className="h-24 flex-col">
                     <FileSpreadsheet className="h-8 w-8 mb-2" />
-                    Exportar Vendas
+                    Vendas (Excel)
+                  </Button>
+                  <Button onClick={async () => {
+                    const { data } = await supabase
+                      .from('sales')
+                      .select('*, sale_items(*)')
+                      .eq('user_id', user?.id)
+                      .gte('created_at', startDate)
+                      .lte('created_at', endDate + 'T23:59:59');
+                    if (data) {
+                      const salesForPdf = data.map(s => ({
+                        id: s.id,
+                        created_at: s.created_at,
+                        total: s.total,
+                        payment_method: s.payment_method,
+                        items: s.sale_items.map((item: any) => ({
+                          product_name: item.product_name,
+                          quantity: item.quantity,
+                          total_price: item.total_price
+                        }))
+                      }));
+                      const doc = generateSalesReportPDF(salesForPdf);
+                      downloadPDF(doc, `vendas_${startDate}_${endDate}.pdf`);
+                      toast({ title: 'PDF gerado com sucesso!' });
+                    }
+                  }} variant="outline" className="h-24 flex-col">
+                    <FileText className="h-8 w-8 mb-2" />
+                    Vendas (PDF)
                   </Button>
                   <Button onClick={exportProducts} variant="outline" className="h-24 flex-col">
                     <Package className="h-8 w-8 mb-2" />
-                    Exportar Produtos
+                    Produtos (Excel)
                   </Button>
                   <Button onClick={exportCustomers} variant="outline" className="h-24 flex-col">
                     <Users className="h-8 w-8 mb-2" />
-                    Exportar Clientes
+                    Clientes (Excel)
                   </Button>
                 </div>
               </CardContent>

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calculator, Coins } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Coins } from 'lucide-react';
 
 interface ChangeCalculatorDialogProps {
   open: boolean;
@@ -13,6 +15,7 @@ interface ChangeCalculatorDialogProps {
 export function ChangeCalculatorDialog({ open, onOpenChange, total = 0 }: ChangeCalculatorDialogProps) {
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState<number>(0);
+  const [showChange, setShowChange] = useState(true);
 
   useEffect(() => {
     const received = parseFloat(amountReceived.replace(',', '.')) || 0;
@@ -51,50 +54,66 @@ export function ChangeCalculatorDialog({ open, onOpenChange, total = 0 }: Change
             <p className="text-2xl font-bold text-primary font-mono">{formatCurrency(total)}</p>
           </div>
 
-          {/* Valor Recebido */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Valor Recebido</label>
-            <Input
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={amountReceived}
-              onChange={(e) => setAmountReceived(e.target.value)}
-              className="text-lg font-mono text-center h-12"
-              autoFocus
+          {/* Checkbox Troco */}
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="showChange" 
+              checked={showChange} 
+              onCheckedChange={(checked) => setShowChange(checked === true)}
             />
+            <Label htmlFor="showChange" className="text-sm cursor-pointer">
+              Calcular troco
+            </Label>
           </div>
 
-          {/* Valores Rápidos */}
-          <div className="flex flex-wrap gap-2 justify-center">
-            {quickAmounts.map((amount) => (
-              <Button
-                key={amount}
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickAmount(amount)}
-                className="min-w-[60px]"
-              >
-                R$ {amount}
-              </Button>
-            ))}
-          </div>
+          {showChange && (
+            <>
+              {/* Valor Recebido */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Valor Recebido</label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  className="text-lg font-mono text-center h-12"
+                  autoFocus
+                />
+              </div>
 
-          {/* Troco */}
-          <div className={`p-4 rounded-lg text-center ${
-            change >= 0 
-              ? 'bg-primary/10 border border-primary/30' 
-              : 'bg-destructive/10 border border-destructive/30'
-          }`}>
-            <p className="text-sm text-muted-foreground">
-              {change >= 0 ? 'Troco a Devolver' : 'Falta Receber'}
-            </p>
-            <p className={`text-3xl font-bold font-mono ${
-              change >= 0 ? 'text-primary' : 'text-destructive'
-            }`}>
-              {formatCurrency(Math.abs(change))}
-            </p>
-          </div>
+              {/* Valores Rápidos */}
+              <div className="flex flex-wrap gap-2 justify-center">
+                {quickAmounts.map((amount) => (
+                  <Button
+                    key={amount}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickAmount(amount)}
+                    className="min-w-[60px]"
+                  >
+                    R$ {amount}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Troco / Falta */}
+              <div className={`p-4 rounded-lg text-center ${
+                change >= 0 
+                  ? 'bg-primary/10 border border-primary/30' 
+                  : 'bg-destructive/10 border border-destructive/30'
+              }`}>
+                <p className="text-sm text-muted-foreground">
+                  {change >= 0 ? 'Troco a Devolver' : 'Falta Receber'}
+                </p>
+                <p className={`text-3xl font-bold font-mono ${
+                  change >= 0 ? 'text-primary' : 'text-destructive'
+                }`}>
+                  {change >= 0 ? '' : '-'}{formatCurrency(Math.abs(change))}
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter className="gap-2">

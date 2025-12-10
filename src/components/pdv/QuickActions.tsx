@@ -5,10 +5,9 @@ import {
   Package, 
   Calculator, 
   History, 
-  FileText,
   Printer,
-  Settings,
-  BarChart3
+  BarChart3,
+  Coins
 } from 'lucide-react';
 import {
   Tooltip,
@@ -22,6 +21,7 @@ interface QuickActionsProps {
   onAddCustomer: () => void;
   onQuickProduct: () => void;
   onCalculator: () => void;
+  onChangeCalculator: () => void;
   onSalesHistory: () => void;
   onGenerateReceipt: () => void;
   onOpenReports: () => void;
@@ -32,6 +32,7 @@ export function QuickActions({
   onAddCustomer,
   onQuickProduct,
   onCalculator,
+  onChangeCalculator,
   onSalesHistory,
   onGenerateReceipt,
   onOpenReports,
@@ -41,6 +42,7 @@ export function QuickActions({
     { icon: UserPlus, label: 'Cliente', onClick: onAddCustomer, color: 'text-primary' },
     { icon: Package, label: 'Produto Rápido', onClick: onQuickProduct, color: 'text-success' },
     { icon: Calculator, label: 'Calculadora', onClick: onCalculator, color: 'text-accent' },
+    { icon: Coins, label: 'Troco', onClick: onChangeCalculator, color: 'text-green-500' },
     { icon: History, label: 'Histórico', onClick: onSalesHistory, color: 'text-muted-foreground' },
     { icon: Printer, label: 'Imprimir', onClick: onGenerateReceipt, color: 'text-primary' },
     { icon: BarChart3, label: 'Relatórios', onClick: onOpenReports, color: 'text-chart-4' },

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MessageCircle } from 'lucide-react';
+import { Loader2, MessageCircle, ArrowLeft, Mail } from 'lucide-react';
 import { z } from 'zod';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
 
@@ -27,19 +27,25 @@ const signupSchema = z.object({
   path: ['confirmPassword'],
 });
 
+const resetSchema = z.object({
+  email: z.string().email('Email inválido'),
+});
+
 const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601";
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ email: '', password: '', confirmPassword: '', fullName: '' });
+  const [resetEmail, setResetEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
       navigate('/dashboard', { replace: true });
@@ -131,11 +137,126 @@ export default function Auth() {
     }
   };
 
-  // Show loading while checking auth state
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+    
+    const result = resetSchema.safeParse({ email: resetEmail });
+    if (!result.success) {
+      setErrors({ resetEmail: 'Email inválido' });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth?type=recovery`,
+    });
+    
+    setIsLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao enviar email',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setResetEmailSent(true);
+      toast({ 
+        title: 'Email enviado!', 
+        description: 'Verifique sua caixa de entrada para redefinir sua senha.' 
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (showResetPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <img src={techcontrolLogo} alt="TechControl" className="h-20 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-foreground">Recuperar Senha</h1>
+            <p className="text-muted-foreground mt-2">Digite seu email para receber o link de recuperação</p>
+          </div>
+
+          <Card className="shadow-xl border-border/50">
+            <CardContent className="pt-6">
+              {resetEmailSent ? (
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <Mail className="h-8 w-8 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-semibold">Email Enviado!</h2>
+                  <p className="text-muted-foreground">
+                    Enviamos um link de recuperação para <strong>{resetEmail}</strong>. 
+                    Verifique sua caixa de entrada e spam.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => {
+                      setShowResetPassword(false);
+                      setResetEmailSent(false);
+                      setResetEmail('');
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Voltar ao Login
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                    />
+                    {errors.resetEmail && <p className="text-xs text-destructive">{errors.resetEmail}</p>}
+                  </div>
+                  
+                  <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enviar Link de Recuperação'}
+                  </Button>
+
+                  <Button 
+                    type="button"
+                    variant="ghost" 
+                    className="w-full" 
+                    onClick={() => setShowResetPassword(false)}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Voltar ao Login
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="text-center mt-4 space-y-2">
+            <a 
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-green-500 transition-colors"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Desenvolvido por TechControl • WhatsApp: (11) 95661-4601
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
@@ -188,17 +309,14 @@ export default function Auth() {
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
                   </Button>
 
-                  {/* Forgot Password */}
                   <div className="text-center pt-2">
-                    <a 
-                      href={WHATSAPP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    <button 
+                      type="button"
+                      onClick={() => setShowResetPassword(true)}
+                      className="text-sm text-primary hover:underline"
                     >
-                      <MessageCircle className="h-4 w-4" />
-                      Esqueceu a senha? Fale conosco: (11) 95661-4601
-                    </a>
+                      Esqueceu sua senha?
+                    </button>
                   </div>
                 </form>
               </TabsContent>

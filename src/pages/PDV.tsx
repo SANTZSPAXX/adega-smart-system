@@ -18,6 +18,7 @@ import { OfflineIndicator } from '@/components/pdv/OfflineIndicator';
 import { QuickActions } from '@/components/pdv/QuickActions';
 import { SalesHistory } from '@/components/pdv/SalesHistory';
 import { CalculatorDialog } from '@/components/pdv/CalculatorDialog';
+import { ChangeCalculatorDialog } from '@/components/pdv/ChangeCalculatorDialog';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Search, 
@@ -94,6 +95,7 @@ export default function PDV() {
   // Dialogs
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [showCalculatorDialog, setShowCalculatorDialog] = useState(false);
+  const [showChangeCalculatorDialog, setShowChangeCalculatorDialog] = useState(false);
   const [showDiscountDialog, setShowDiscountDialog] = useState(false);
   const [showQuickProductDialog, setShowQuickProductDialog] = useState(false);
   const [discountType, setDiscountType] = useState<'value' | 'percent'>('value');
@@ -601,6 +603,7 @@ export default function PDV() {
                 onAddCustomer={() => navigate('/customers')}
                 onQuickProduct={() => setShowQuickProductDialog(true)}
                 onCalculator={() => setShowCalculatorDialog(true)}
+                onChangeCalculator={() => setShowChangeCalculatorDialog(true)}
                 onSalesHistory={() => setShowHistoryDialog(true)}
                 onGenerateReceipt={handlePrintReceipt}
                 onOpenReports={() => navigate('/reports')}
@@ -1086,6 +1089,13 @@ export default function PDV() {
 
       {/* Calculator Dialog */}
       <CalculatorDialog open={showCalculatorDialog} onOpenChange={setShowCalculatorDialog} />
+
+      {/* Change Calculator Dialog */}
+      <ChangeCalculatorDialog 
+        open={showChangeCalculatorDialog} 
+        onOpenChange={setShowChangeCalculatorDialog}
+        total={total}
+      />
     </AppLayout>
   );
 }

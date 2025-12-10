@@ -209,6 +209,54 @@ export type Database = {
         }
         Relationships: []
       }
+      discounts: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          max_discount: number | null
+          min_purchase: number | null
+          name: string
+          type: string
+          usage_count: number | null
+          usage_limit: number | null
+          user_id: string
+          valid_from: string | null
+          valid_until: string | null
+          value: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_discount?: number | null
+          min_purchase?: number | null
+          name: string
+          type?: string
+          usage_count?: number | null
+          usage_limit?: number | null
+          user_id: string
+          valid_from?: string | null
+          valid_until?: string | null
+          value?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_discount?: number | null
+          min_purchase?: number | null
+          name?: string
+          type?: string
+          usage_count?: number | null
+          usage_limit?: number | null
+          user_id?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
       financial_transactions: {
         Row: {
           amount: number
@@ -515,25 +563,40 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           email: string | null
+          expires_at: string | null
           full_name: string | null
           id: string
+          is_active: boolean | null
+          phone: string | null
           updated_at: string | null
+          username: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           email?: string | null
+          expires_at?: string | null
           full_name?: string | null
           id: string
+          is_active?: boolean | null
+          phone?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           email?: string | null
+          expires_at?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean | null
+          phone?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Relationships: []
       }
@@ -705,7 +768,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "reseller"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -833,7 +896,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "reseller"],
     },
   },
 } as const

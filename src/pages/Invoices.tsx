@@ -25,8 +25,10 @@ import {
   Building2,
   QrCode,
   Download,
-  Settings
+  Settings,
+  Printer
 } from 'lucide-react';
+import { generateInvoicePDF, printPDF, downloadPDF } from '@/utils/pdfGenerator';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -320,6 +322,23 @@ export default function Invoices() {
     }
   };
 
+  const handlePrintInvoice = async (invoice: Invoice) => {
+    try {
+      // Fetch invoice items
+      const { data: items } = await supabase
+        .from('invoice_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+      
+      const invoiceWithItems = { ...invoice, items: items || [] };
+      const doc = generateInvoicePDF(invoiceWithItems, companySettings || undefined);
+      printPDF(doc);
+      toast({ title: 'Abrindo impressão...' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao imprimir', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
@@ -471,6 +490,16 @@ export default function Invoices() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
+                              {(invoice.status === 'authorized' || invoice.status === 'pending') && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => handlePrintInvoice(invoice)}
+                                  title="Imprimir"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                              )}
                               {invoice.status === 'authorized' && (
                                 <Button
                                   variant="ghost"

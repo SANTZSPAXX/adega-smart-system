@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { format, subDays, startOfDay, endOfDay, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const CHART_COLORS = ['hsl(173, 80%, 40%)', 'hsl(38, 92%, 50%)', 'hsl(142, 76%, 36%)', 'hsl(262, 83%, 58%)', 'hsl(0, 84%, 60%)'];
@@ -20,19 +21,20 @@ export default function Dashboard() {
     lowStockProducts: 0,
     totalCustomers: 0,
     salesCount: 0,
+    avgTicket: 0,
+    todaySalesCount: 0,
   });
   const [salesByDay, setSalesByDay] = useState<any[]>([]);
+  const [salesByHour, setSalesByHour] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [recentSales, setRecentSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+    
     try {
       const today = new Date();
       const startOfToday = startOfDay(today).toISOString();
@@ -75,6 +77,8 @@ export default function Dashboard() {
       const monthTotal = monthSalesData?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
       const totalProducts = productsData?.length || 0;
       const lowStock = productsData?.filter(p => p.stock_quantity <= p.min_stock).length || 0;
+      const todaySalesCount = todaySalesData?.length || 0;
+      const avgTicket = todaySalesCount > 0 ? todayTotal / todaySalesCount : 0;
 
       setStats({
         todaySales: todayTotal,
@@ -83,6 +87,8 @@ export default function Dashboard() {
         lowStockProducts: lowStock,
         totalCustomers: customersCount || 0,
         salesCount: salesCount || 0,
+        avgTicket,
+        todaySalesCount,
       });
 
       // Fetch sales by day (last 7 days)
@@ -101,10 +107,42 @@ export default function Dashboard() {
 
         last7Days.push({
           day: format(date, 'EEE', { locale: ptBR }),
+          date: format(date, 'dd/MM'),
           vendas: daySales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0,
+          quantidade: daySales?.length || 0,
         });
       }
       setSalesByDay(last7Days);
+
+      // Fetch sales by hour (last 24 hours)
+      const salesHourly = [];
+      for (let i = 23; i >= 0; i--) {
+        const hourStart = subHours(today, i);
+        const hourEnd = subHours(today, i - 1);
+        
+        const { data: hourSales } = await supabase
+          .from('sales')
+          .select('total')
+          .gte('created_at', hourStart.toISOString())
+          .lt('created_at', hourEnd.toISOString())
+          .eq('status', 'completed');
+
+        salesHourly.push({
+          hora: format(hourStart, 'HH:00'),
+          vendas: hourSales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0,
+        });
+      }
+      setSalesByHour(salesHourly);
+
+      // Fetch recent sales
+      const { data: recentSalesData } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      setRecentSales(recentSalesData || []);
 
       // Fetch top selling products
       const { data: saleItems } = await supabase
@@ -124,7 +162,7 @@ export default function Dashboard() {
         const sorted = Object.entries(productSales)
           .sort((a, b) => b[1].total - a[1].total)
           .slice(0, 5)
-          .map(([name, data]) => ({ name: name.substring(0, 15), vendas: data.total }));
+          .map(([name, data]) => ({ name: name.substring(0, 15), vendas: data.total, quantidade: data.quantity }));
         
         setTopProducts(sorted);
       }
@@ -157,12 +195,42 @@ export default function Dashboard() {
         );
       }
 
+      setLastUpdate(new Date());
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+      
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(fetchDashboardData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchDashboardData]);
+
+  // Real-time subscription for new sales
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-sales')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sales' },
+        () => {
+          fetchDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDashboardData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -174,15 +242,21 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral do seu negócio</p>
+            <p className="text-muted-foreground">Visão geral em tempo real</p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              Atualizado: {format(lastUpdate, "HH:mm:ss", { locale: ptBR })}
+            </p>
+            <Button variant="outline" size="sm" onClick={fetchDashboardData} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
           <StatCard
             title="Vendas Hoje"
             value={formatCurrency(stats.todaySales)}
@@ -194,6 +268,18 @@ export default function Dashboard() {
             value={formatCurrency(stats.monthSales)}
             icon={TrendingUp}
             variant="success"
+          />
+          <StatCard
+            title="Vendas Hoje"
+            value={stats.todaySalesCount}
+            icon={ShoppingCart}
+            variant="default"
+          />
+          <StatCard
+            title="Ticket Médio"
+            value={formatCurrency(stats.avgTicket)}
+            icon={TrendingUp}
+            variant="default"
           />
           <StatCard
             title="Total Vendas"
@@ -221,7 +307,7 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Charts */}
+        {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Sales by Day Chart */}
           <Card>
@@ -231,9 +317,15 @@ export default function Dashboard() {
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesByDay}>
+                  <AreaChart data={salesByDay}>
+                    <defs>
+                      <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${v}`} />
                     <Tooltip
                       contentStyle={{
@@ -243,20 +335,50 @@ export default function Dashboard() {
                       }}
                       formatter={(value: number) => [formatCurrency(value), 'Vendas']}
                     />
-                    <Bar dataKey="vendas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <Area type="monotone" dataKey="vendas" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorVendas)" strokeWidth={2} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
+          {/* Sales by Hour Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Vendas por Hora (Últimas 24h)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={salesByHour}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="hora" stroke="hsl(var(--muted-foreground))" fontSize={10} interval={2} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${v}`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number) => [formatCurrency(value), 'Vendas']}
+                    />
+                    <Line type="monotone" dataKey="vendas" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 2 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Payment Methods Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Formas de Pagamento</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px]">
+              <div className="h-[280px]">
                 {paymentMethods.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -264,8 +386,8 @@ export default function Dashboard() {
                         data={paymentMethods}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
+                        innerRadius={50}
+                        outerRadius={90}
                         paddingAngle={5}
                         dataKey="value"
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -299,7 +421,7 @@ export default function Dashboard() {
               <CardTitle className="text-lg">Produtos Mais Vendidos</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px]">
+              <div className="h-[280px]">
                 {topProducts.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topProducts} layout="vertical">
@@ -312,7 +434,10 @@ export default function Dashboard() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
-                        formatter={(value: number) => [formatCurrency(value), 'Vendas']}
+                        formatter={(value: number, name: string) => [
+                          name === 'vendas' ? formatCurrency(value) : value,
+                          name === 'vendas' ? 'Total' : 'Qtd'
+                        ]}
                       />
                       <Bar dataKey="vendas" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
                     </BarChart>
@@ -326,6 +451,39 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Sales */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Vendas Recentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentSales.length > 0 ? (
+              <div className="space-y-3">
+                {recentSales.map((sale) => (
+                  <div key={sale.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <ShoppingCart className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Venda #{sale.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(sale.created_at), "dd/MM HH:mm", { locale: ptBR })} • {sale.payment_method}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-bold text-lg">{formatCurrency(sale.total)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhuma venda recente
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );

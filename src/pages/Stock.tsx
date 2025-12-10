@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Product, StockMovement } from '@/types/database';
-import { Plus, Minus, ArrowUpDown, Package, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { Plus, Minus, ArrowUpDown, Package, TrendingUp, TrendingDown, Search, Barcode } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ export default function Stock() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showMovementDialog, setShowMovementDialog] = useState(false);
+  const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
   const [movementType, setMovementType] = useState<'entrada' | 'saida'>('entrada');
   const [loading, setLoading] = useState(false);
   
@@ -34,6 +35,11 @@ export default function Stock() {
     product_id: '',
     quantity: '',
     reason: '',
+  });
+
+  const [quickAddForm, setQuickAddForm] = useState({
+    barcode: '',
+    quantity: '',
   });
 
   useEffect(() => {
@@ -61,7 +67,8 @@ export default function Stock() {
   };
 
   const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.barcode?.includes(searchTerm)
   );
 
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.min_stock);
@@ -124,6 +131,56 @@ export default function Stock() {
     }
   };
 
+  // Quick add by EAN/barcode
+  const handleQuickAdd = async () => {
+    if (!quickAddForm.barcode || !quickAddForm.quantity) {
+      toast({ title: 'Preencha o código de barras e quantidade', variant: 'destructive' });
+      return;
+    }
+
+    const product = products.find(p => p.barcode === quickAddForm.barcode);
+    
+    if (!product) {
+      toast({ title: 'Produto não encontrado', description: 'Nenhum produto com este código de barras', variant: 'destructive' });
+      return;
+    }
+
+    const quantity = Number(quickAddForm.quantity);
+    const previousStock = product.stock_quantity;
+    const newStock = previousStock + quantity;
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('stock_movements')
+        .insert({
+          user_id: user!.id,
+          product_id: product.id,
+          movement_type: 'entrada',
+          quantity,
+          previous_stock: previousStock,
+          new_stock: newStock,
+          reason: 'Entrada rápida por código de barras',
+        });
+
+      if (error) throw error;
+
+      toast({ 
+        title: 'Entrada registrada!', 
+        description: `${product.name}: +${quantity} unidades` 
+      });
+      setQuickAddForm({ barcode: '', quantity: '' });
+      setShowQuickAddDialog(false);
+      fetchProducts();
+      fetchMovements();
+    } catch (error: any) {
+      toast({ title: 'Erro ao registrar entrada', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -133,6 +190,10 @@ export default function Stock() {
             <p className="text-muted-foreground">Gerencie entradas e saídas de produtos</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowQuickAddDialog(true)}>
+              <Barcode className="h-4 w-4 mr-2" />
+              Entrada por EAN
+            </Button>
             <Button variant="outline" onClick={() => openMovementDialog('saida')}>
               <Minus className="h-4 w-4 mr-2" />
               Saída
@@ -166,7 +227,7 @@ export default function Stock() {
                 <div className="relative max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar produto..."
+                    placeholder="Buscar por nome ou código de barras..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -179,6 +240,7 @@ export default function Stock() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Produto</TableHead>
+                        <TableHead>Código</TableHead>
                         <TableHead className="text-center">Estoque Atual</TableHead>
                         <TableHead className="text-center">Mínimo</TableHead>
                         <TableHead className="text-center">Status</TableHead>
@@ -198,6 +260,11 @@ export default function Stock() {
                                 <p className="text-xs text-muted-foreground">{product.unit}</p>
                               </div>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-sm text-muted-foreground">
+                              {product.barcode || '-'}
+                            </span>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className={cn(
@@ -415,11 +482,11 @@ export default function Stock() {
             </div>
             
             <div className="space-y-2">
-              <Label>Motivo</Label>
+              <Label>Motivo (opcional)</Label>
               <Input
                 value={movementForm.reason}
                 onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })}
-                placeholder="Ex: Compra de fornecedor, Perda, etc."
+                placeholder="Ex: Reposição de estoque, Venda avulsa..."
               />
             </div>
           </div>
@@ -428,12 +495,52 @@ export default function Stock() {
             <Button variant="outline" onClick={() => setShowMovementDialog(false)}>
               Cancelar
             </Button>
-            <Button
-              onClick={saveMovement}
-              disabled={loading}
-              variant={movementType === 'entrada' ? 'success' : 'destructive'}
-            >
+            <Button onClick={saveMovement} disabled={loading}>
               {loading ? 'Salvando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add by EAN Dialog */}
+      <Dialog open={showQuickAddDialog} onOpenChange={setShowQuickAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Barcode className="h-5 w-5" />
+              Entrada Rápida por Código de Barras
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Código de Barras (EAN) *</Label>
+              <Input
+                value={quickAddForm.barcode}
+                onChange={(e) => setQuickAddForm({ ...quickAddForm, barcode: e.target.value })}
+                placeholder="Escaneie ou digite o código"
+                autoFocus
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Quantidade *</Label>
+              <Input
+                type="number"
+                value={quickAddForm.quantity}
+                onChange={(e) => setQuickAddForm({ ...quickAddForm, quantity: e.target.value })}
+                placeholder="0"
+                min="1"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowQuickAddDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleQuickAdd} disabled={loading}>
+              {loading ? 'Adicionando...' : 'Adicionar Entrada'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -8,12 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, User } from 'lucide-react';
+import { Loader2, MessageCircle } from 'lucide-react';
 import { z } from 'zod';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
 
 const loginSchema = z.object({
-  identifier: z.string().min(1, 'Preencha email ou usuário'),
+  email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
@@ -21,18 +21,18 @@ const signupSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
   fullName: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-  username: z.string().min(3, 'Username deve ter no mínimo 3 caracteres').regex(/^[a-zA-Z0-9_]+$/, 'Apenas letras, números e _'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Senhas não conferem',
   path: ['confirmPassword'],
 });
 
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601&text&type=phone_number&app_absent=0";
+
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'email' | 'username'>('email');
-  const [loginData, setLoginData] = useState({ identifier: '', password: '' });
-  const [signupData, setSignupData] = useState({ email: '', password: '', confirmPassword: '', fullName: '', username: '' });
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [signupData, setSignupData] = useState({ email: '', password: '', confirmPassword: '', fullName: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { signIn, signUp } = useAuth();
@@ -55,68 +55,35 @@ export default function Auth() {
 
     setIsLoading(true);
     
-    let email = loginData.identifier;
+    // Check if user is active and not expired
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_active, expires_at')
+      .eq('email', loginData.email)
+      .maybeSingle();
     
-    // If logging in with username, first find the email
-    if (loginMethod === 'username') {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, is_active, expires_at')
-        .eq('username', loginData.identifier)
-        .maybeSingle();
-      
-      if (!profile?.email) {
-        toast({ title: 'Usuário não encontrado', variant: 'destructive' });
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if user is active
+    if (profile) {
       if (profile.is_active === false) {
         toast({ title: 'Conta desativada', description: 'Entre em contato com o administrador', variant: 'destructive' });
         setIsLoading(false);
         return;
       }
 
-      // Check expiration
       if (profile.expires_at && new Date(profile.expires_at) < new Date()) {
         toast({ title: 'Acesso expirado', description: 'Seu acesso expirou. Entre em contato: (11) 95661-4601', variant: 'destructive' });
         setIsLoading(false);
         return;
       }
-
-      email = profile.email;
-    } else {
-      // Check if logging in with email - verify active and expiration
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_active, expires_at')
-        .eq('email', loginData.identifier)
-        .maybeSingle();
-      
-      if (profile) {
-        if (profile.is_active === false) {
-          toast({ title: 'Conta desativada', description: 'Entre em contato com o administrador', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-
-        if (profile.expires_at && new Date(profile.expires_at) < new Date()) {
-          toast({ title: 'Acesso expirado', description: 'Seu acesso expirou. Entre em contato: (11) 95661-4601', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-      }
     }
 
-    const { error } = await signIn(email, loginData.password);
+    const { error } = await signIn(loginData.email, loginData.password);
     setIsLoading(false);
 
     if (error) {
       toast({
         title: 'Erro ao entrar',
         description: error.message === 'Invalid login credentials' 
-          ? 'Email/usuário ou senha incorretos' 
+          ? 'Email ou senha incorretos' 
           : error.message,
         variant: 'destructive',
       });
@@ -140,29 +107,8 @@ export default function Auth() {
       return;
     }
 
-    // Check if username is already taken
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', signupData.username)
-      .maybeSingle();
-
-    if (existingUser) {
-      setErrors({ username: 'Este username já está em uso' });
-      return;
-    }
-
     setIsLoading(true);
     const { error } = await signUp(signupData.email, signupData.password, signupData.fullName);
-    
-    if (!error) {
-      // Update profile with username
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('profiles').update({ username: signupData.username }).eq('id', user.id);
-      }
-    }
-    
     setIsLoading(false);
 
     if (error) {
@@ -200,40 +146,16 @@ export default function Auth() {
             <CardContent>
               <TabsContent value="login" className="mt-0">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  {/* Login Method Toggle */}
-                  <div className="flex gap-2 mb-4">
-                    <Button 
-                      type="button"
-                      variant={loginMethod === 'email' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setLoginMethod('email')}
-                      className="flex-1"
-                    >
-                      <Mail className="h-4 w-4 mr-2" />Email
-                    </Button>
-                    <Button 
-                      type="button"
-                      variant={loginMethod === 'username' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setLoginMethod('username')}
-                      className="flex-1"
-                    >
-                      <User className="h-4 w-4 mr-2" />Usuário
-                    </Button>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="login-identifier">
-                      {loginMethod === 'email' ? 'Email' : 'Nome de Usuário'}
-                    </Label>
+                    <Label htmlFor="login-email">Email</Label>
                     <Input
-                      id="login-identifier"
-                      type={loginMethod === 'email' ? 'email' : 'text'}
-                      placeholder={loginMethod === 'email' ? 'seu@email.com' : 'seu_usuario'}
-                      value={loginData.identifier}
-                      onChange={(e) => setLoginData({ ...loginData, identifier: e.target.value })}
+                      id="login-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                     />
-                    {errors.identifier && <p className="text-xs text-destructive">{errors.identifier}</p>}
+                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Senha</Label>
@@ -246,37 +168,38 @@ export default function Auth() {
                     />
                     {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                   </div>
+                  
                   <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
                   </Button>
+
+                  {/* Forgot Password */}
+                  <div className="text-center pt-2">
+                    <a 
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Esqueceu a senha? Fale conosco: (11) 95661-4601
+                    </a>
+                  </div>
                 </form>
               </TabsContent>
 
               <TabsContent value="signup" className="mt-0">
                 <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name">Nome Completo</Label>
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        placeholder="Seu nome"
-                        value={signupData.fullName}
-                        onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                      />
-                      {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-username">Username</Label>
-                      <Input
-                        id="signup-username"
-                        type="text"
-                        placeholder="usuario123"
-                        value={signupData.username}
-                        onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
-                      />
-                      {errors.username && <p className="text-xs text-destructive">{errors.username}</p>}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-name">Nome Completo</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="Seu nome"
+                      value={signupData.fullName}
+                      onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
+                    />
+                    {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
@@ -320,9 +243,17 @@ export default function Auth() {
           </Tabs>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          Desenvolvido por TechControl • WhatsApp: (11) 95661-4601
-        </p>
+        <div className="text-center mt-4 space-y-2">
+          <a 
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-green-500 transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Desenvolvido por TechControl • WhatsApp: (11) 95661-4601
+          </a>
+        </div>
       </div>
     </div>
   );

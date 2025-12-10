@@ -1,16 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Package, 
   ShoppingCart, 
   Users, 
-  BarChart3, 
   Settings, 
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Wallet,
   ArrowUpDown,
   Store,
   UserCog,
@@ -20,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -29,8 +28,6 @@ const navItems = [
   { title: 'Clientes', url: '/customers', icon: Users },
   { title: 'Notas Fiscais', url: '/invoices', icon: FileText },
   { title: 'Descontos', url: '/discounts', icon: Percent },
-  { title: 'Financeiro', url: '/financial', icon: Wallet },
-  { title: 'Relatórios', url: '/reports', icon: BarChart3 },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ];
 
@@ -40,8 +37,27 @@ const adminItems = [
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [systemName, setSystemName] = useState('TechControl PDV');
   const location = useLocation();
-  const { signOut, profile, isAdmin } = useAuth();
+  const { signOut, profile, isAdmin, user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchSystemName();
+    }
+  }, [user]);
+
+  const fetchSystemName = async () => {
+    const { data } = await supabase
+      .from('company_settings')
+      .select('trade_name')
+      .eq('user_id', user!.id)
+      .maybeSingle();
+    
+    if (data?.trade_name) {
+      setSystemName(data.trade_name);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -57,7 +73,7 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <Store className="h-8 w-8 text-primary" />
-            <span className="font-bold text-lg text-sidebar-foreground">Adega PDV</span>
+            <span className="font-bold text-lg text-sidebar-foreground truncate">{systemName}</span>
           </div>
         )}
         {collapsed && <Store className="h-8 w-8 text-primary mx-auto" />}

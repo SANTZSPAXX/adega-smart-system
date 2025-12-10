@@ -321,7 +321,18 @@ export default function Stock() {
                         <TableRow key={product.id} className="table-row-hover">
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+                              {product.image_url ? (
+                                <img 
+                                  src={product.image_url} 
+                                  alt={product.name}
+                                  className="h-10 w-10 rounded-lg object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              <div className={cn("h-10 w-10 rounded-lg bg-secondary flex items-center justify-center", product.image_url && "hidden")}>
                                 <Package className="h-5 w-5 text-muted-foreground" />
                               </div>
                               <div>

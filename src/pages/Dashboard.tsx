@@ -3,7 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users } from 'lucide-react';
+import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users, XCircle, Clock } from 'lucide-react';
+import { differenceInDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -24,6 +25,8 @@ export default function Dashboard() {
     avgTicket: 0,
     todaySalesCount: 0,
     totalProfit: 0,
+    expiredProducts: 0,
+    expiringProducts: 0,
   });
   const [salesByDay, setSalesByDay] = useState<any[]>([]);
   const [salesByHour, setSalesByHour] = useState<any[]>([]);
@@ -57,10 +60,10 @@ export default function Dashboard() {
         .gte('created_at', startOfMonth)
         .eq('status', 'completed');
 
-      // Fetch products count and low stock
+      // Fetch products count, low stock, and expiration data
       const { data: productsData } = await supabase
         .from('products')
-        .select('stock_quantity, min_stock');
+        .select('stock_quantity, min_stock, expiration_date, is_active');
 
       // Fetch customers count
       const { count: customersCount } = await supabase
@@ -101,9 +104,22 @@ export default function Dashboard() {
       // Calculate stats
       const todayTotal = todaySalesData?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
       const monthTotal = monthSalesData?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
-      const totalProducts = productsData?.length || 0;
-      const lowStock = productsData?.filter(p => p.stock_quantity <= p.min_stock).length || 0;
+      const activeProducts = productsData?.filter(p => p.is_active !== false) || [];
+      const totalProducts = activeProducts.length;
+      const lowStock = activeProducts.filter(p => p.stock_quantity <= p.min_stock).length;
       const todaySalesCount = todaySalesData?.length || 0;
+      
+      // Calculate expiration stats
+      const now = new Date();
+      let expiredCount = 0;
+      let expiringCount = 0;
+      activeProducts.forEach(p => {
+        if (p.expiration_date && p.stock_quantity > 0) {
+          const daysUntil = differenceInDays(new Date(p.expiration_date), now);
+          if (daysUntil < 0) expiredCount++;
+          else if (daysUntil <= 14) expiringCount++;
+        }
+      });
       const avgTicket = todaySalesCount > 0 ? todayTotal / todaySalesCount : 0;
 
       setStats({
@@ -116,6 +132,8 @@ export default function Dashboard() {
         avgTicket,
         todaySalesCount,
         totalProfit,
+        expiredProducts: expiredCount,
+        expiringProducts: expiringCount,
       });
 
       // Fetch sales by day (last 7 days)
@@ -331,6 +349,18 @@ export default function Dashboard() {
             value={stats.totalCustomers}
             icon={Users}
             variant="default"
+          />
+          <StatCard
+            title="Vencidos"
+            value={stats.expiredProducts}
+            icon={XCircle}
+            variant={stats.expiredProducts > 0 ? 'destructive' : 'default'}
+          />
+          <StatCard
+            title="A Vencer"
+            value={stats.expiringProducts}
+            icon={Clock}
+            variant={stats.expiringProducts > 0 ? 'warning' : 'default'}
           />
         </div>
 

@@ -162,8 +162,26 @@ export default function SalesHistory() {
     cartao_credito: 'Crédito',
     cartao_debito: 'Débito',
     pix: 'PIX',
-    'dinheiro_cartao': 'Dinheiro + Cartão',
-    'pix_cartao': 'PIX + Cartão',
+    outros: 'Outros',
+  };
+
+  const handleClearAll = async () => {
+    if (!confirm('Tem certeza que deseja limpar TODO o histórico de vendas? Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      // Delete all sale items first
+      await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Then delete all sales
+      const { error } = await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      if (error) throw error;
+      
+      toast({ title: 'Histórico de vendas limpo com sucesso!' });
+      fetchSales();
+    } catch (error: any) {
+      toast({ title: 'Erro ao limpar histórico', description: error.message, variant: 'destructive' });
+    }
   };
 
   const filteredSales = sales.filter(sale => 
@@ -180,6 +198,10 @@ export default function SalesHistory() {
             <h1 className="text-3xl font-bold text-foreground">Histórico de Vendas</h1>
             <p className="text-muted-foreground">Visualize e gerencie todas as vendas realizadas</p>
           </div>
+          <Button variant="destructive" onClick={handleClearAll} disabled={sales.length === 0}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Limpar Histórico
+          </Button>
         </div>
 
         <Card>

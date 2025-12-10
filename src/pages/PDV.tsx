@@ -374,6 +374,10 @@ export default function PDV() {
       ncm_code: null,
       cest_code: null,
       cfop: null,
+      image_url: null,
+      profit_margin_percent: null,
+      profit_margin_value: null,
+      expiration_date: null,
     };
 
     setCart([...cart, { product: quickProduct, quantity: 1 }]);

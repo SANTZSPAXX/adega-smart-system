@@ -18,6 +18,7 @@ interface ProductWithExpiration {
   stock_quantity: number;
   unit: string;
   expiration_date: string | null;
+  image_url: string | null;
   category?: { name: string } | null;
 }
 
@@ -40,7 +41,7 @@ export default function Expiration() {
     
     const { data } = await supabase
       .from('products')
-      .select('id, name, barcode, stock_quantity, unit, expiration_date, category:categories(name)')
+      .select('id, name, barcode, stock_quantity, unit, expiration_date, image_url, category:categories(name)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .gt('stock_quantity', 0)
@@ -183,9 +184,17 @@ export default function Expiration() {
                 <TableRow key={product.id} className={config.rowClass}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
-                        <Package className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                      {product.image_url ? (
+                        <img 
+                          src={product.image_url} 
+                          alt={product.name}
+                          className="h-10 w-10 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
                       <div>
                         <p className="font-medium">{product.name}</p>
                         {product.barcode && (

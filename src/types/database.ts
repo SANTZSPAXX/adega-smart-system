@@ -38,6 +38,10 @@ export interface Product {
   ncm_code: string | null;
   cest_code: string | null;
   cfop: string | null;
+  image_url: string | null;
+  profit_margin_percent: number | null;
+  profit_margin_value: number | null;
+  expiration_date: string | null;
   created_at: string;
   updated_at: string;
   category?: Category;

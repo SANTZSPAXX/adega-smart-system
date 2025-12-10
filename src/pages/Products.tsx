@@ -37,6 +37,7 @@ export default function Products() {
     stock_quantity: '',
     min_stock: '5',
     unit: 'un',
+    expiration_date: '',
   });
 
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
@@ -86,6 +87,7 @@ export default function Products() {
         stock_quantity: String(product.stock_quantity),
         min_stock: String(product.min_stock),
         unit: product.unit,
+        expiration_date: (product as any).expiration_date || '',
       });
     } else {
       setEditingProduct(null);
@@ -99,6 +101,7 @@ export default function Products() {
         stock_quantity: '0',
         min_stock: '5',
         unit: 'un',
+        expiration_date: '',
       });
     }
     setShowProductDialog(true);
@@ -123,6 +126,7 @@ export default function Products() {
       stock_quantity: Number(productForm.stock_quantity) || 0,
       min_stock: Number(productForm.min_stock) || 5,
       unit: productForm.unit,
+      expiration_date: productForm.expiration_date || null,
     };
 
     try {
@@ -379,6 +383,15 @@ export default function Products() {
                   value={productForm.min_stock}
                   onChange={(e) => setProductForm({ ...productForm, min_stock: e.target.value })}
                   placeholder="5"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Data de Vencimento</Label>
+                <Input
+                  type="date"
+                  value={productForm.expiration_date}
+                  onChange={(e) => setProductForm({ ...productForm, expiration_date: e.target.value })}
                 />
               </div>
               

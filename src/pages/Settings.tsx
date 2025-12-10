@@ -9,9 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Settings as SettingsIcon, Store, User, Save, Loader2, Upload } from 'lucide-react';
+import { Settings as SettingsIcon, Store, User, Save, Loader2, MessageCircle } from 'lucide-react';
 import { CompanySettings } from '@/types/database';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
+
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601&text&type=phone_number&app_absent=0";
 
 export default function Settings() {
   const { user, profile } = useAuth();
@@ -21,7 +23,6 @@ export default function Settings() {
 
   const [profileData, setProfileData] = useState({
     full_name: '',
-    username: '',
     phone: '',
     email: ''
   });
@@ -44,11 +45,13 @@ export default function Settings() {
     environment: 'homologation'
   });
 
+  // System name setting stored in company_settings trade_name
+  const [systemName, setSystemName] = useState('TechControl PDV');
+
   useEffect(() => {
     if (profile) {
       setProfileData({
         full_name: profile.full_name || '',
-        username: (profile as any).username || '',
         phone: (profile as any).phone || '',
         email: profile.email || ''
       });
@@ -67,6 +70,10 @@ export default function Settings() {
     
     if (data) {
       setCompanyData(data as CompanySettings);
+      // Use trade_name as system display name if set
+      if (data.trade_name) {
+        setSystemName(data.trade_name);
+      }
     }
     setLoading(false);
   };
@@ -79,7 +86,6 @@ export default function Settings() {
       .from('profiles')
       .update({
         full_name: profileData.full_name,
-        username: profileData.username,
         phone: profileData.phone
       })
       .eq('id', user.id);
@@ -100,6 +106,7 @@ export default function Settings() {
       .from('company_settings')
       .upsert({
         ...companyData,
+        trade_name: systemName, // Save system name as trade_name
         user_id: user.id
       }, { onConflict: 'user_id' });
 
@@ -119,16 +126,43 @@ export default function Settings() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Configurações</h1>
-            <p className="text-muted-foreground">Perfil e configurações da loja</p>
+            <p className="text-muted-foreground">Perfil e configurações do sistema</p>
           </div>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+        <Tabs defaultValue="system" className="space-y-6">
           <TabsList>
+            <TabsTrigger value="system"><Store className="h-4 w-4 mr-2" />Sistema</TabsTrigger>
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-2" />Meu Perfil</TabsTrigger>
             <TabsTrigger value="company"><Store className="h-4 w-4 mr-2" />Dados da Empresa</TabsTrigger>
             <TabsTrigger value="fiscal"><SettingsIcon className="h-4 w-4 mr-2" />Configurações Fiscais</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="system">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configurações do Sistema</CardTitle>
+                <CardDescription>Personalize o nome exibido no sistema</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="max-w-md">
+                  <Label>Nome do Sistema (exibido no menu)</Label>
+                  <Input 
+                    value={systemName} 
+                    onChange={e => setSystemName(e.target.value)} 
+                    placeholder="TechControl PDV"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Este nome será exibido no menu lateral do sistema
+                  </p>
+                </div>
+                <Button onClick={saveCompanySettings} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Salvar
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="profile">
             <Card>
@@ -143,14 +177,6 @@ export default function Settings() {
                     <Input 
                       value={profileData.full_name} 
                       onChange={e => setProfileData({...profileData, full_name: e.target.value})} 
-                    />
-                  </div>
-                  <div>
-                    <Label>Nome de Usuário</Label>
-                    <Input 
-                      value={profileData.username} 
-                      onChange={e => setProfileData({...profileData, username: e.target.value})} 
-                      placeholder="usuario123"
                     />
                   </div>
                   <div>
@@ -188,7 +214,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <Label>Nome Fantasia</Label>
-                    <Input value={companyData.trade_name || ''} onChange={e => setCompanyData({...companyData, trade_name: e.target.value})} />
+                    <Input value={systemName} onChange={e => setSystemName(e.target.value)} />
                   </div>
                   <div>
                     <Label>CNPJ</Label>
@@ -309,7 +335,15 @@ export default function Settings() {
               <img src={techcontrolLogo} alt="TechControl" className="h-8" />
               <div>
                 <p className="font-medium text-sm">Desenvolvido por TechControl</p>
-                <p className="text-xs text-muted-foreground">WhatsApp: (11) 95661-4601</p>
+                <a 
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-muted-foreground hover:text-green-500 flex items-center gap-1"
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  WhatsApp: (11) 95661-4601
+                </a>
               </div>
             </div>
           </CardContent>

@@ -2,15 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Phone, Mail, CheckCircle, Loader2, MessageCircle } from "lucide-react";
+import { CheckCircle, Loader2, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import techcontrolLogo from "@/assets/techcontrol-logo.png";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Email inválido");
+
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -20,8 +21,6 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [trialSuccess, setTrialSuccess] = useState(false);
   const [emailError, setEmailError] = useState("");
-
-  const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601&text&type=phone_number&app_absent=0";
 
   const handleStartTrial = async () => {
     setEmailError("");
@@ -35,7 +34,6 @@ const Index = () => {
     setLoading(true);
     
     try {
-      // Create trial user with 30-day expiration
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + 30);
       
@@ -68,7 +66,6 @@ const Index = () => {
       }
 
       if (data.user) {
-        // Update profile with expiration
         await supabase.from('profiles').update({
           expires_at: expirationDate.toISOString(),
           full_name: "Usuário Trial"
@@ -81,7 +78,6 @@ const Index = () => {
         description: "Você tem 30 dias de acesso gratuito."
       });
 
-      // Redirect after 2 seconds
       setTimeout(() => {
         navigate('/auth');
       }, 2000);
@@ -171,7 +167,6 @@ const Index = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-primary" />
               Teste Grátis por 30 Dias
             </DialogTitle>
             <DialogDescription>

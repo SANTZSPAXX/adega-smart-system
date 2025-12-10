@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MessageCircle } from 'lucide-react';
@@ -27,7 +27,7 @@ const signupSchema = z.object({
   path: ['confirmPassword'],
 });
 
-const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601&text&type=phone_number&app_absent=0";
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601";
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +55,6 @@ export default function Auth() {
 
     setIsLoading(true);
     
-    // Check if user is active and not expired
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_active, expires_at')

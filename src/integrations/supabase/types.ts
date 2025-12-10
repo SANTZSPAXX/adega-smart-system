@@ -513,10 +513,13 @@ export type Database = {
           description: string | null
           expiration_date: string | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           min_stock: number | null
           name: string
           ncm_code: string | null
+          profit_margin_percent: number | null
+          profit_margin_value: number | null
           sale_price: number | null
           stock_quantity: number | null
           unit: string | null
@@ -533,10 +536,13 @@ export type Database = {
           description?: string | null
           expiration_date?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           min_stock?: number | null
           name: string
           ncm_code?: string | null
+          profit_margin_percent?: number | null
+          profit_margin_value?: number | null
           sale_price?: number | null
           stock_quantity?: number | null
           unit?: string | null
@@ -553,10 +559,13 @@ export type Database = {
           description?: string | null
           expiration_date?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           min_stock?: number | null
           name?: string
           ncm_code?: string | null
+          profit_margin_percent?: number | null
+          profit_margin_value?: number | null
           sale_price?: number | null
           stock_quantity?: number | null
           unit?: string | null

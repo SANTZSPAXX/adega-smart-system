@@ -12,8 +12,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Product, Category } from '@/types/database';
-import { Plus, Search, Edit, Trash2, Package, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, AlertTriangle, Image } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function Products() {
   const { user } = useAuth();
@@ -38,7 +39,13 @@ export default function Products() {
     min_stock: '5',
     unit: 'un',
     expiration_date: '',
+    profit_margin_percent: '',
+    profit_margin_value: '',
+    image_url: '',
   });
+  
+  const [useAutoPrice, setUseAutoPrice] = useState(false);
+  const [autoPriceType, setAutoPriceType] = useState<'percent' | 'value'>('percent');
 
   const [categoryForm, setCategoryForm] = useState({ name: '', description: '' });
 
@@ -77,6 +84,10 @@ export default function Products() {
   const openProductDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
+      const hasMarginPercent = (product as any).profit_margin_percent != null;
+      const hasMarginValue = (product as any).profit_margin_value != null;
+      setUseAutoPrice(hasMarginPercent || hasMarginValue);
+      setAutoPriceType(hasMarginPercent ? 'percent' : 'value');
       setProductForm({
         name: product.name,
         barcode: product.barcode || '',
@@ -88,9 +99,14 @@ export default function Products() {
         min_stock: String(product.min_stock),
         unit: product.unit,
         expiration_date: (product as any).expiration_date || '',
+        profit_margin_percent: String((product as any).profit_margin_percent || ''),
+        profit_margin_value: String((product as any).profit_margin_value || ''),
+        image_url: (product as any).image_url || '',
       });
     } else {
       setEditingProduct(null);
+      setUseAutoPrice(false);
+      setAutoPriceType('percent');
       setProductForm({
         name: '',
         barcode: '',
@@ -102,9 +118,48 @@ export default function Products() {
         min_stock: '5',
         unit: 'un',
         expiration_date: '',
+        profit_margin_percent: '',
+        profit_margin_value: '',
+        image_url: '',
       });
     }
     setShowProductDialog(true);
+  };
+
+  // Calculate sale price based on cost and margin
+  const calculateSalePrice = (cost: string, marginPercent: string, marginValue: string, type: 'percent' | 'value') => {
+    const costNum = Number(cost) || 0;
+    if (type === 'percent' && marginPercent) {
+      return (costNum * (1 + Number(marginPercent) / 100)).toFixed(2);
+    } else if (type === 'value' && marginValue) {
+      return (costNum + Number(marginValue)).toFixed(2);
+    }
+    return '';
+  };
+
+  // Handle auto price calculation
+  const handleCostPriceChange = (value: string) => {
+    setProductForm(prev => {
+      const newForm = { ...prev, cost_price: value };
+      if (useAutoPrice) {
+        const calculated = calculateSalePrice(value, prev.profit_margin_percent, prev.profit_margin_value, autoPriceType);
+        if (calculated) newForm.sale_price = calculated;
+      }
+      return newForm;
+    });
+  };
+
+  const handleMarginChange = (value: string, type: 'percent' | 'value') => {
+    setProductForm(prev => {
+      const newForm = type === 'percent' 
+        ? { ...prev, profit_margin_percent: value, profit_margin_value: '' }
+        : { ...prev, profit_margin_value: value, profit_margin_percent: '' };
+      if (useAutoPrice && prev.cost_price) {
+        const calculated = calculateSalePrice(prev.cost_price, newForm.profit_margin_percent, newForm.profit_margin_value, type);
+        if (calculated) newForm.sale_price = calculated;
+      }
+      return newForm;
+    });
   };
 
   const saveProduct = async () => {
@@ -127,6 +182,9 @@ export default function Products() {
       min_stock: Number(productForm.min_stock) || 5,
       unit: productForm.unit,
       expiration_date: productForm.expiration_date || null,
+      profit_margin_percent: useAutoPrice && autoPriceType === 'percent' ? Number(productForm.profit_margin_percent) || null : null,
+      profit_margin_value: useAutoPrice && autoPriceType === 'value' ? Number(productForm.profit_margin_value) || null : null,
+      image_url: productForm.image_url || null,
     };
 
     try {
@@ -241,8 +299,16 @@ export default function Products() {
                     <TableRow key={product.id} className="table-row-hover">
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
-                            <Package className="h-5 w-5 text-muted-foreground" />
+                          <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
+                            {(product as any).image_url ? (
+                              <img 
+                                src={(product as any).image_url} 
+                                alt={product.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            )}
                           </div>
                           <div>
                             <p className="font-medium">{product.name}</p>
@@ -308,7 +374,7 @@ export default function Products() {
             <DialogTitle>{editingProduct ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-2">
                 <Label>Nome *</Label>
@@ -317,6 +383,28 @@ export default function Products() {
                   onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                   placeholder="Nome do produto"
                 />
+              </div>
+              
+              <div className="col-span-2 space-y-2">
+                <Label>URL da Imagem (opcional)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={(productForm as any).image_url || ''}
+                    onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value } as any)}
+                    placeholder="https://exemplo.com/imagem.jpg"
+                    className="flex-1"
+                  />
+                  {(productForm as any).image_url && (
+                    <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <img 
+                        src={(productForm as any).image_url} 
+                        alt="Preview"
+                        className="h-full w-full object-cover"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-2">
@@ -351,9 +439,55 @@ export default function Products() {
                 <Input
                   type="number"
                   value={productForm.cost_price}
-                  onChange={(e) => setProductForm({ ...productForm, cost_price: e.target.value })}
+                  onChange={(e) => handleCostPriceChange(e.target.value)}
                   placeholder="0.00"
                 />
+              </div>
+              
+              {/* Auto price calculation section */}
+              <div className="col-span-2 space-y-3 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="useAutoPrice" 
+                    checked={useAutoPrice}
+                    onCheckedChange={(checked) => setUseAutoPrice(checked as boolean)}
+                  />
+                  <Label htmlFor="useAutoPrice" className="text-sm cursor-pointer">
+                    Calcular preço de venda automaticamente (opcional)
+                  </Label>
+                </div>
+                
+                {useAutoPrice && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Tipo de Margem</Label>
+                      <Select
+                        value={autoPriceType}
+                        onValueChange={(value: 'percent' | 'value') => setAutoPriceType(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percent">Porcentagem (%)</SelectItem>
+                          <SelectItem value="value">Valor Fixo (R$)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs">
+                        {autoPriceType === 'percent' ? 'Margem (%)' : 'Margem (R$)'}
+                      </Label>
+                      <Input
+                        type="number"
+                        value={autoPriceType === 'percent' ? productForm.profit_margin_percent : productForm.profit_margin_value}
+                        onChange={(e) => handleMarginChange(e.target.value, autoPriceType)}
+                        placeholder={autoPriceType === 'percent' ? 'Ex: 30' : 'Ex: 10.00'}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -363,7 +497,13 @@ export default function Products() {
                   value={productForm.sale_price}
                   onChange={(e) => setProductForm({ ...productForm, sale_price: e.target.value })}
                   placeholder="0.00"
+                  className={useAutoPrice ? 'bg-muted' : ''}
                 />
+                {useAutoPrice && productForm.cost_price && productForm.sale_price && (
+                  <p className="text-xs text-muted-foreground">
+                    Lucro: {formatCurrency(Number(productForm.sale_price) - Number(productForm.cost_price))}
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">

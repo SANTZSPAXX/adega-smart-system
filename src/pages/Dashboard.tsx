@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users, RefreshCw } from 'lucide-react';
+import { DollarSign, Package, ShoppingCart, TrendingUp, AlertTriangle, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -208,8 +208,8 @@ export default function Dashboard() {
     if (user) {
       fetchDashboardData();
       
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(fetchDashboardData, 30000);
+      // Auto-refresh every 3 minutes (180000ms)
+      const interval = setInterval(fetchDashboardData, 180000);
       return () => clearInterval(interval);
     }
   }, [user, fetchDashboardData]);
@@ -244,15 +244,9 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
             <p className="text-muted-foreground">Visão geral em tempo real</p>
           </div>
-          <div className="flex items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              Atualizado: {format(lastUpdate, "HH:mm:ss", { locale: ptBR })}
-            </p>
-            <Button variant="outline" size="sm" onClick={fetchDashboardData} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Atualizado: {format(lastUpdate, "HH:mm:ss", { locale: ptBR })} • Próxima atualização em 3 min
+          </p>
         </div>
 
         {/* Stats Grid */}

@@ -94,6 +94,10 @@ export default function PDV() {
   const [pixKey, setPixKey] = useState('');
   const [activeDiscounts, setActiveDiscounts] = useState<Discount[]>([]);
   
+  // Cash registers
+  const [openRegisters, setOpenRegisters] = useState<Array<{id: string; register_name: string; operator_name: string | null}>>([]);
+  const [selectedRegister, setSelectedRegister] = useState<string | null>(null);
+  
   // Dialogs
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [showCalculatorDialog, setShowCalculatorDialog] = useState(false);
@@ -111,11 +115,21 @@ export default function PDV() {
       fetchCustomers();
       fetchPixKey();
       fetchActiveDiscounts();
+      fetchOpenRegisters();
     } else if (cachedProducts.length > 0) {
       setProducts(cachedProducts);
       setCustomers(cachedCustomers);
     }
     searchRef.current?.focus();
+  }, [user]);
+
+  // Fetch open registers periodically
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      fetchOpenRegisters();
+    }, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Apply automatic discount when cart changes
@@ -182,6 +196,27 @@ export default function PDV() {
     
     if (data) {
       setActiveDiscounts(data as Discount[]);
+    }
+  };
+
+  const fetchOpenRegisters = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('cash_register')
+      .select('id, register_name, operator_name')
+      .eq('user_id', user.id)
+      .eq('status', 'open')
+      .order('opened_at', { ascending: false });
+    
+    if (data && data.length > 0) {
+      setOpenRegisters(data);
+      // Auto-select first register if none selected
+      if (!selectedRegister) {
+        setSelectedRegister(data[0].id);
+      }
+    } else {
+      setOpenRegisters([]);
+      setSelectedRegister(null);
     }
   };
 
@@ -500,45 +535,46 @@ export default function PDV() {
           });
       }
 
-      // Update cash register sales
-      const { data: openRegister } = await supabase
-        .from('cash_register')
-        .select('*')
-        .eq('user_id', user!.id)
-        .eq('status', 'open')
-        .maybeSingle();
+      // Update cash register sales - use selected register
+      if (selectedRegister) {
+        const { data: register } = await supabase
+          .from('cash_register')
+          .select('*')
+          .eq('id', selectedRegister)
+          .single();
 
-      if (openRegister) {
-        let updateFields: Record<string, number> = {};
-        const saleTotal = total;
+        if (register) {
+          let updateFields: Record<string, number> = {};
+          const saleTotal = total;
 
-        if (paymentMethod === 'dinheiro') {
-          updateFields = { cash_sales: (openRegister.cash_sales || 0) + saleTotal };
-        } else if (paymentMethod === 'pix') {
-          updateFields = { pix_sales: (openRegister.pix_sales || 0) + saleTotal };
-        } else if (paymentMethod === 'cartao_credito' || paymentMethod === 'cartao_debito') {
-          updateFields = { card_sales: (openRegister.card_sales || 0) + saleTotal };
-        } else if (paymentMethod === 'dinheiro_cartao') {
-          const cashPart = cashOrPixAmount;
-          const cardPart = cardAmountValue;
-          updateFields = {
-            cash_sales: (openRegister.cash_sales || 0) + cashPart,
-            card_sales: (openRegister.card_sales || 0) + cardPart,
-          };
-        } else if (paymentMethod === 'pix_cartao') {
-          const pixPart = cashOrPixAmount;
-          const cardPart = cardAmountValue;
-          updateFields = {
-            pix_sales: (openRegister.pix_sales || 0) + pixPart,
-            card_sales: (openRegister.card_sales || 0) + cardPart,
-          };
-        }
+          if (paymentMethod === 'dinheiro') {
+            updateFields = { cash_sales: (register.cash_sales || 0) + saleTotal };
+          } else if (paymentMethod === 'pix') {
+            updateFields = { pix_sales: (register.pix_sales || 0) + saleTotal };
+          } else if (paymentMethod === 'cartao_credito' || paymentMethod === 'cartao_debito') {
+            updateFields = { card_sales: (register.card_sales || 0) + saleTotal };
+          } else if (paymentMethod === 'dinheiro_cartao') {
+            const cashPart = cashOrPixAmount;
+            const cardPart = cardAmountValue;
+            updateFields = {
+              cash_sales: (register.cash_sales || 0) + cashPart,
+              card_sales: (register.card_sales || 0) + cardPart,
+            };
+          } else if (paymentMethod === 'pix_cartao') {
+            const pixPart = cashOrPixAmount;
+            const cardPart = cardAmountValue;
+            updateFields = {
+              pix_sales: (register.pix_sales || 0) + pixPart,
+              card_sales: (register.card_sales || 0) + cardPart,
+            };
+          }
 
-        if (Object.keys(updateFields).length > 0) {
-          await supabase
-            .from('cash_register')
-            .update(updateFields)
-            .eq('id', openRegister.id);
+          if (Object.keys(updateFields).length > 0) {
+            await supabase
+              .from('cash_register')
+              .update(updateFields)
+              .eq('id', register.id);
+          }
         }
       }
 
@@ -561,6 +597,8 @@ export default function PDV() {
           .eq('id', selectedCustomer.id);
       }
 
+      const currentRegister = openRegisters.find(r => r.id === selectedRegister);
+      
       setLastSale({
         id: sale.id,
         items: cart.map(item => ({
@@ -573,7 +611,8 @@ export default function PDV() {
         discount,
         payment_method: paymentMethod,
         created_at: sale.created_at,
-        customer_name: selectedCustomer?.name,
+        register_name: currentRegister?.register_name,
+        operator_name: currentRegister?.operator_name,
       });
 
       setShowPaymentDialog(false);
@@ -727,24 +766,32 @@ export default function PDV() {
               )}
             </div>
 
-            {/* Customer Select */}
+            {/* Cash Register Select */}
             <Select
-              value={selectedCustomer?.id || 'none'}
-              onValueChange={(value) => setSelectedCustomer(value === 'none' ? null : customers.find(c => c.id === value) || null)}
+              value={selectedRegister || 'none'}
+              onValueChange={(value) => setSelectedRegister(value === 'none' ? null : value)}
             >
-              <SelectTrigger className="w-full">
-                <User className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Selecionar cliente (opcional)" />
+              <SelectTrigger className={cn("w-full", openRegisters.length === 0 && "border-destructive text-destructive")}>
+                <Banknote className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Selecionar caixa" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Sem cliente</SelectItem>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name} {customer.loyalty_points > 0 && `(${customer.loyalty_points} pts)`}
+                {openRegisters.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    Nenhum caixa aberto
                   </SelectItem>
-                ))}
+                ) : (
+                  openRegisters.map((register) => (
+                    <SelectItem key={register.id} value={register.id}>
+                      {register.register_name} {register.operator_name && `| ${register.operator_name}`}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
+            {openRegisters.length === 0 && (
+              <p className="text-xs text-destructive mt-1">Abra um caixa antes de vender</p>
+            )}
           </div>
 
           {/* Cart Items */}
@@ -848,7 +895,7 @@ export default function PDV() {
               variant="default"
               size="lg"
               className="w-full h-14 text-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || openRegisters.length === 0 || !selectedRegister}
               onClick={() => setShowPaymentDialog(true)}
             >
               <CreditCard className="h-5 w-5 mr-2" />

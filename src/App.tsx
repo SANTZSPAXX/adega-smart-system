@@ -11,6 +11,7 @@ import PDV from "./pages/PDV";
 import Products from "./pages/Products";
 import Stock from "./pages/Stock";
 import Customers from "./pages/Customers";
+import Invoices from "./pages/Invoices";
 import Financial from "./pages/Financial";
 import Reports from "./pages/Reports";
 import AdminUsers from "./pages/AdminUsers";
@@ -38,6 +39,7 @@ function AppRoutes() {
       <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
       <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/financial" element={<ProtectedRoute><Financial /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />

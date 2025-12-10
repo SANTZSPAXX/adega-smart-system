@@ -8,10 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MessageCircle, Chrome } from 'lucide-react';
+import { Loader2, MessageCircle } from 'lucide-react';
 import { z } from 'zod';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
-import { Separator } from '@/components/ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -43,37 +42,9 @@ export default function Auth() {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     }
   }, [user, loading, navigate]);
-
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-      
-      if (error) {
-        toast({
-          title: 'Erro ao entrar com Google',
-          description: error.message,
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error('Google login error:', err);
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +95,7 @@ export default function Auth() {
       });
     } else {
       toast({ title: 'Bem-vindo!', description: 'Login realizado com sucesso.' });
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     }
   };
 
@@ -156,9 +127,18 @@ export default function Auth() {
       });
     } else {
       toast({ title: 'Conta criada!', description: 'Você pode fazer login agora.' });
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     }
   };
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
@@ -206,25 +186,6 @@ export default function Auth() {
                   
                   <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
-                  </Button>
-
-                  <div className="relative my-4">
-                    <Separator />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                      ou
-                    </span>
-                  </div>
-
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full" 
-                    size="lg" 
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                  >
-                    <Chrome className="h-5 w-5 mr-2" />
-                    Entrar com Google
                   </Button>
 
                   {/* Forgot Password */}
@@ -290,25 +251,6 @@ export default function Auth() {
                   </div>
                   <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Criar Conta'}
-                  </Button>
-
-                  <div className="relative my-4">
-                    <Separator />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                      ou
-                    </span>
-                  </div>
-
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full" 
-                    size="lg" 
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                  >
-                    <Chrome className="h-5 w-5 mr-2" />
-                    Cadastrar com Google
                   </Button>
                 </form>
               </TabsContent>

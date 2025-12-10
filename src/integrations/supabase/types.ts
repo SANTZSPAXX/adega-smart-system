@@ -103,6 +103,7 @@ export type Database = {
           nfce_series: number | null
           nfe_series: number | null
           phone: string | null
+          pix_key: string | null
           state: string | null
           state_registration: string | null
           tax_regime: string | null
@@ -130,6 +131,7 @@ export type Database = {
           nfce_series?: number | null
           nfe_series?: number | null
           phone?: string | null
+          pix_key?: string | null
           state?: string | null
           state_registration?: string | null
           tax_regime?: string | null
@@ -157,6 +159,7 @@ export type Database = {
           nfce_series?: number | null
           nfe_series?: number | null
           phone?: string | null
+          pix_key?: string | null
           state?: string | null
           state_registration?: string | null
           tax_regime?: string | null

@@ -9,11 +9,33 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Settings as SettingsIcon, Store, User, Save, Loader2, MessageCircle } from 'lucide-react';
-import { CompanySettings } from '@/types/database';
+import { Settings as SettingsIcon, Store, User, Save, Loader2, MessageCircle, QrCode } from 'lucide-react';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
 
-const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601&text&type=phone_number&app_absent=0";
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601";
+
+interface CompanySettings {
+  id?: string;
+  user_id: string;
+  company_name?: string;
+  trade_name?: string;
+  cnpj?: string;
+  state_registration?: string;
+  municipal_registration?: string;
+  address?: string;
+  address_number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  phone?: string;
+  email?: string;
+  tax_regime?: string;
+  environment?: string;
+  nfe_series?: number;
+  nfce_series?: number;
+  pix_key?: string;
+}
 
 export default function Settings() {
   const { user, profile } = useAuth();
@@ -42,11 +64,12 @@ export default function Settings() {
     phone: '',
     email: '',
     tax_regime: 'simples_nacional',
-    environment: 'homologation'
+    environment: 'homologation',
+    pix_key: ''
   });
 
-  // System name setting stored in company_settings trade_name
   const [systemName, setSystemName] = useState('TechControl PDV');
+  const [pixKey, setPixKey] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -70,9 +93,11 @@ export default function Settings() {
     
     if (data) {
       setCompanyData(data as CompanySettings);
-      // Use trade_name as system display name if set
       if (data.trade_name) {
         setSystemName(data.trade_name);
+      }
+      if ((data as any).pix_key) {
+        setPixKey((data as any).pix_key);
       }
     }
     setLoading(false);
@@ -106,9 +131,10 @@ export default function Settings() {
       .from('company_settings')
       .upsert({
         ...companyData,
-        trade_name: systemName, // Save system name as trade_name
+        trade_name: systemName,
+        pix_key: pixKey,
         user_id: user.id
-      }, { onConflict: 'user_id' });
+      } as any, { onConflict: 'user_id' });
 
     setSaving(false);
     if (error) {
@@ -133,6 +159,7 @@ export default function Settings() {
         <Tabs defaultValue="system" className="space-y-6">
           <TabsList>
             <TabsTrigger value="system"><Store className="h-4 w-4 mr-2" />Sistema</TabsTrigger>
+            <TabsTrigger value="pix"><QrCode className="h-4 w-4 mr-2" />PIX</TabsTrigger>
             <TabsTrigger value="profile"><User className="h-4 w-4 mr-2" />Meu Perfil</TabsTrigger>
             <TabsTrigger value="company"><Store className="h-4 w-4 mr-2" />Dados da Empresa</TabsTrigger>
             <TabsTrigger value="fiscal"><SettingsIcon className="h-4 w-4 mr-2" />Configurações Fiscais</TabsTrigger>
@@ -159,6 +186,35 @@ export default function Settings() {
                 <Button onClick={saveCompanySettings} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Salvar
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pix">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Configuração PIX
+                </CardTitle>
+                <CardDescription>Configure sua chave PIX para receber pagamentos no PDV</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="max-w-md">
+                  <Label>Chave PIX</Label>
+                  <Input 
+                    value={pixKey} 
+                    onChange={e => setPixKey(e.target.value)} 
+                    placeholder="CPF, CNPJ, Email, Telefone ou Chave Aleatória"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Esta chave será usada para gerar o QR Code de pagamento no PDV
+                  </p>
+                </div>
+                <Button onClick={saveCompanySettings} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Salvar Chave PIX
                 </Button>
               </CardContent>
             </Card>

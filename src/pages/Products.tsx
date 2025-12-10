@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -49,17 +49,21 @@ export default function Products() {
   }, [user]);
 
   const fetchProducts = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from('products')
       .select('*, category:categories(*)')
+      .eq('user_id', user.id)
       .order('name');
     if (data) setProducts(data as Product[]);
   };
 
   const fetchCategories = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from('categories')
       .select('*')
+      .eq('user_id', user.id)
       .order('name');
     if (data) setCategories(data as Category[]);
   };
@@ -323,13 +327,14 @@ export default function Products() {
               <div className="space-y-2">
                 <Label>Categoria</Label>
                 <Select
-                  value={productForm.category_id}
-                  onValueChange={(value) => setProductForm({ ...productForm, category_id: value })}
+                  value={productForm.category_id || "none"}
+                  onValueChange={(value) => setProductForm({ ...productForm, category_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Sem categoria</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                     ))}

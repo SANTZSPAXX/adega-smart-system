@@ -18,6 +18,7 @@ import { OfflineIndicator } from '@/components/pdv/OfflineIndicator';
 import { QuickActions } from '@/components/pdv/QuickActions';
 import { SalesHistory } from '@/components/pdv/SalesHistory';
 import { CalculatorDialog } from '@/components/pdv/CalculatorDialog';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   Search, 
   Plus, 
@@ -35,10 +36,23 @@ import {
   MessageCircle,
   Phone,
   Barcode,
-  Tag
+  Tag,
+  QrCode
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
+
+const WHATSAPP_URL = "https://api.whatsapp.com/send/?phone=5511956614601";
+
+interface Discount {
+  id: string;
+  name: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  min_purchase: number;
+  max_discount: number | null;
+  is_active: boolean;
+}
 
 export default function PDV() {
   const navigate = useNavigate();
@@ -66,6 +80,7 @@ export default function PDV() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [discount, setDiscount] = useState(0);
+  const [appliedDiscount, setAppliedDiscount] = useState<Discount | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('dinheiro');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -73,6 +88,8 @@ export default function PDV() {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
+  const [pixKey, setPixKey] = useState('');
+  const [activeDiscounts, setActiveDiscounts] = useState<Discount[]>([]);
   
   // Dialogs
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
@@ -88,12 +105,19 @@ export default function PDV() {
     if (user) {
       fetchProducts();
       fetchCustomers();
+      fetchPixKey();
+      fetchActiveDiscounts();
     } else if (cachedProducts.length > 0) {
       setProducts(cachedProducts);
       setCustomers(cachedCustomers);
     }
     searchRef.current?.focus();
   }, [user]);
+
+  // Apply automatic discount when cart changes
+  useEffect(() => {
+    applyAutomaticDiscount();
+  }, [cart, activeDiscounts]);
 
   // Sync pending sales when online
   useEffect(() => {
@@ -103,9 +127,11 @@ export default function PDV() {
   }, [isOnline]);
 
   const fetchProducts = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from('products')
       .select('*')
+      .eq('user_id', user.id)
       .eq('is_active', true)
       .order('name');
     if (data) {
@@ -116,13 +142,88 @@ export default function PDV() {
   };
 
   const fetchCustomers = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from('customers')
       .select('*')
+      .eq('user_id', user.id)
       .order('name');
     if (data) {
       setCustomers(data as Customer[]);
       cacheCustomers(data as Customer[]);
+    }
+  };
+
+  const fetchPixKey = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('company_settings')
+      .select('pix_key')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (data && (data as any).pix_key) {
+      setPixKey((data as any).pix_key);
+    }
+  };
+
+  const fetchActiveDiscounts = async () => {
+    if (!user) return;
+    const now = new Date().toISOString();
+    const { data } = await supabase
+      .from('discounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .or(`valid_until.is.null,valid_until.gte.${now}`);
+    
+    if (data) {
+      setActiveDiscounts(data as Discount[]);
+    }
+  };
+
+  const applyAutomaticDiscount = () => {
+    if (cart.length === 0 || activeDiscounts.length === 0) {
+      if (appliedDiscount) {
+        setDiscount(0);
+        setAppliedDiscount(null);
+      }
+      return;
+    }
+
+    const subtotal = cart.reduce((sum, item) => sum + (Number(item.product.sale_price) * item.quantity), 0);
+    
+    // Find best applicable discount
+    let bestDiscount: Discount | null = null;
+    let bestDiscountValue = 0;
+
+    for (const d of activeDiscounts) {
+      if (subtotal >= d.min_purchase) {
+        let discountValue = 0;
+        if (d.type === 'percentage') {
+          discountValue = (subtotal * d.value) / 100;
+          if (d.max_discount && discountValue > d.max_discount) {
+            discountValue = d.max_discount;
+          }
+        } else {
+          discountValue = d.value;
+        }
+
+        if (discountValue > bestDiscountValue) {
+          bestDiscountValue = discountValue;
+          bestDiscount = d;
+        }
+      }
+    }
+
+    if (bestDiscount && bestDiscountValue > 0) {
+      setDiscount(bestDiscountValue);
+      setAppliedDiscount(bestDiscount);
+      if (!appliedDiscount || appliedDiscount.id !== bestDiscount.id) {
+        toast({ title: `Desconto "${bestDiscount.name}" aplicado automaticamente!` });
+      }
+    } else if (appliedDiscount) {
+      setDiscount(0);
+      setAppliedDiscount(null);
     }
   };
 
@@ -266,17 +367,19 @@ export default function PDV() {
     setCart([]);
     setSelectedCustomer(null);
     setDiscount(0);
+    setAppliedDiscount(null);
     setSearchTerm('');
     searchRef.current?.focus();
   };
 
-  const applyDiscount = () => {
+  const applyManualDiscount = () => {
     const value = Number(discountInput);
     if (discountType === 'percent') {
       setDiscount((subtotal * value) / 100);
     } else {
       setDiscount(value);
     }
+    setAppliedDiscount(null);
     setShowDiscountDialog(false);
     setDiscountInput('');
   };
@@ -284,6 +387,12 @@ export default function PDV() {
   const subtotal = cart.reduce((sum, item) => sum + (Number(item.product.sale_price) * item.quantity), 0);
   const total = Math.max(0, subtotal - discount);
   const change = Number(amountReceived) - total;
+
+  // Generate PIX payload (simplified static QR code)
+  const generatePixPayload = () => {
+    if (!pixKey) return '';
+    return `PIX:${pixKey}|VALOR:${total.toFixed(2)}`;
+  };
 
   const handlePayment = async () => {
     if (cart.length === 0) {
@@ -380,6 +489,14 @@ export default function PDV() {
             new_stock: newStock,
             reason: `Venda #${sale.id.substring(0, 8)}`,
           });
+      }
+
+      // Update discount usage count
+      if (appliedDiscount) {
+        await supabase
+          .from('discounts')
+          .update({ usage_count: (appliedDiscount as any).usage_count + 1 })
+          .eq('id', appliedDiscount.id);
       }
 
       // Update customer loyalty
@@ -637,15 +754,24 @@ export default function PDV() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Desconto:</span>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setShowDiscountDialog(true)}
-                  className="h-7"
-                >
-                  <Tag className="h-3 w-3 mr-1" />
-                  {discount > 0 ? formatCurrency(discount) : 'Adicionar'}
-                </Button>
+                {appliedDiscount ? (
+                  <Badge variant="secondary" className="text-xs">
+                    {appliedDiscount.name}
+                  </Badge>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowDiscountDialog(true)}
+                    className="h-7"
+                  >
+                    <Tag className="h-3 w-3 mr-1" />
+                    {discount > 0 ? formatCurrency(discount) : 'Adicionar'}
+                  </Button>
+                )}
+                {discount > 0 && (
+                  <span className="text-sm font-mono text-destructive">-{formatCurrency(discount)}</span>
+                )}
               </div>
             </div>
             
@@ -680,7 +806,7 @@ export default function PDV() {
             {/* WhatsApp Contact */}
             <div className="text-center pt-2">
               <a 
-                href="https://wa.me/5511956614601" 
+                href={WHATSAPP_URL}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"
@@ -774,12 +900,52 @@ export default function PDV() {
                 </div>
 
                 {Number(amountReceived) >= total && (
-                  <div className="text-center p-3 bg-success/10 rounded-lg">
+                  <div className="text-center p-3 bg-green-500/10 rounded-lg">
                     <p className="text-sm text-muted-foreground">Troco</p>
-                    <p className="text-2xl font-bold text-success font-mono">{formatCurrency(change)}</p>
+                    <p className="text-2xl font-bold text-green-500 font-mono">{formatCurrency(change)}</p>
                   </div>
                 )}
               </>
+            )}
+
+            {paymentMethod === 'pix' && (
+              <div className="space-y-4">
+                {pixKey ? (
+                  <div className="text-center space-y-4">
+                    <div className="bg-white p-4 rounded-lg inline-block mx-auto">
+                      <QRCodeSVG 
+                        value={generatePixPayload()} 
+                        size={180}
+                        level="H"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Chave PIX</p>
+                      <p className="font-mono text-sm bg-secondary px-3 py-2 rounded">{pixKey}</p>
+                    </div>
+                    <div className="text-center p-3 bg-primary/10 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Valor a pagar</p>
+                      <p className="text-3xl font-bold text-primary font-mono">{formatCurrency(total)}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center p-4 bg-warning/10 rounded-lg">
+                    <QrCode className="h-12 w-12 mx-auto mb-2 text-warning" />
+                    <p className="text-sm text-warning">Chave PIX não configurada</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Configure sua chave PIX em Configurações → PIX
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-3"
+                      onClick={() => navigate('/settings')}
+                    >
+                      Ir para Configurações
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
 
             {!isOnline && (
@@ -789,7 +955,7 @@ export default function PDV() {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex gap-2">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
               Cancelar
             </Button>
@@ -798,7 +964,7 @@ export default function PDV() {
               disabled={loading || (paymentMethod === 'dinheiro' && Number(amountReceived) < total)}
               className="bg-primary"
             >
-              {loading ? 'Processando...' : 'Confirmar Pagamento'}
+              {loading ? 'Processando...' : paymentMethod === 'pix' ? 'Confirmar Pago' : 'Confirmar Pagamento'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -808,8 +974,8 @@ export default function PDV() {
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="sm:max-w-md">
           <div className="text-center py-4">
-            <div className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="h-8 w-8 text-success" />
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
             <h2 className="text-2xl font-bold mb-2">Venda Realizada!</h2>
             <p className="text-muted-foreground mb-4">
@@ -840,9 +1006,15 @@ export default function PDV() {
       <Dialog open={showDiscountDialog} onOpenChange={setShowDiscountDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Aplicar Desconto</DialogTitle>
+            <DialogTitle>Aplicar Desconto Manual</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {appliedDiscount && (
+              <div className="p-3 bg-green-500/10 rounded-lg text-sm">
+                <p className="font-medium text-green-600">Desconto automático aplicado:</p>
+                <p>{appliedDiscount.name} - {formatCurrency(discount)}</p>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button
                 variant={discountType === 'value' ? 'default' : 'outline'}
@@ -874,7 +1046,7 @@ export default function PDV() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDiscountDialog(false)}>Cancelar</Button>
-            <Button onClick={applyDiscount}>Aplicar</Button>
+            <Button onClick={applyManualDiscount}>Aplicar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

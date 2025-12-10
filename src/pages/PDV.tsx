@@ -931,7 +931,7 @@ export default function PDV() {
               <p className="text-4xl font-bold text-primary font-mono">{formatCurrency(total)}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 variant={paymentMethod === 'dinheiro' ? 'default' : 'outline'}
                 onClick={() => { setPaymentMethod('dinheiro'); setCardAmount(''); }}
@@ -956,36 +956,26 @@ export default function PDV() {
                 <CreditCard className="h-5 w-5 mb-1" />
                 <span className="text-xs">Cartão</span>
               </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
               <Button
-                variant={paymentMethod === 'dinheiro_cartao' ? 'default' : 'outline'}
-                onClick={() => setPaymentMethod('dinheiro_cartao')}
-                className="flex-col h-auto py-2"
+                variant={paymentMethod === 'outros' ? 'default' : 'outline'}
+                onClick={() => { setPaymentMethod('outros'); setCardAmount(''); setAmountReceived(''); }}
+                className="flex-col h-auto py-3"
               >
-                <div className="flex items-center gap-1 mb-1">
-                  <Banknote className="h-4 w-4" />
-                  <span>+</span>
-                  <CreditCard className="h-4 w-4" />
-                </div>
-                <span className="text-xs">Dinheiro + Cartão</span>
-              </Button>
-              <Button
-                variant={paymentMethod === 'pix_cartao' ? 'default' : 'outline'}
-                onClick={() => setPaymentMethod('pix_cartao')}
-                className="flex-col h-auto py-2"
-              >
-                <div className="flex items-center gap-1 mb-1">
-                  <Smartphone className="h-4 w-4" />
-                  <span>+</span>
-                  <CreditCard className="h-4 w-4" />
-                </div>
-                <span className="text-xs">PIX + Cartão</span>
+                <FileText className="h-5 w-5 mb-1" />
+                <span className="text-xs">Outros</span>
               </Button>
             </div>
 
-            {(paymentMethod === 'dinheiro' || paymentMethod === 'dinheiro_cartao') && (
+            <Button
+              variant="outline"
+              onClick={() => setShowCalculatorDialog(true)}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <span className="text-lg">🧮</span>
+              <span>Calculadora</span>
+            </Button>
+
+            {paymentMethod === 'dinheiro' && (
               <>
                 <div className="flex items-center space-x-2 pt-2">
                   <input
@@ -1003,9 +993,7 @@ export default function PDV() {
                 {enableChange && (
                   <>
                     <div>
-                      <p className="text-sm font-medium mb-2">
-                        {paymentMethod === 'dinheiro_cartao' ? 'Valor em Dinheiro:' : 'Valor recebido:'}
-                      </p>
+                      <p className="text-sm font-medium mb-2">Valor recebido:</p>
                       <Input
                         type="number"
                         value={amountReceived}
@@ -1038,34 +1026,9 @@ export default function PDV() {
               </>
             )}
 
-            {(paymentMethod === 'dinheiro_cartao' || paymentMethod === 'pix_cartao') && (
-              <div>
-                <p className="text-sm font-medium mb-2">Valor no Cartão:</p>
-                <Input
-                  type="number"
-                  value={cardAmount}
-                  onChange={(e) => setCardAmount(e.target.value)}
-                  className="text-xl h-12 font-mono text-center"
-                  placeholder="0,00"
-                />
-              </div>
-            )}
-
-            {paymentMethod === 'pix_cartao' && (
-              <div>
-                <p className="text-sm font-medium mb-2">Valor no PIX:</p>
-                <Input
-                  type="number"
-                  value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
-                  className="text-xl h-12 font-mono text-center"
-                  placeholder="0,00"
-                />
-              </div>
-            )}
 
             {/* Change display for cash payments */}
-            {enableChange && (paymentMethod === 'dinheiro' || paymentMethod === 'dinheiro_cartao') && (
+            {enableChange && paymentMethod === 'dinheiro' && (
               <div className={`text-center p-3 rounded-lg ${
                 change >= 0 
                   ? 'bg-green-500/10' 
@@ -1137,7 +1100,7 @@ export default function PDV() {
               onClick={handlePayment}
               disabled={loading || (
                 enableChange && 
-                (paymentMethod === 'dinheiro' || paymentMethod === 'dinheiro_cartao') && 
+                paymentMethod === 'dinheiro' && 
                 change < 0
               )}
               className="bg-primary"

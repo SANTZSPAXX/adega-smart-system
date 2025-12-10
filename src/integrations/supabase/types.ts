@@ -83,6 +83,90 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          address_number: string | null
+          certificate_password: string | null
+          certificate_valid_until: string | null
+          city: string | null
+          cnpj: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          environment: string | null
+          id: string
+          last_nfce_number: number | null
+          last_nfe_number: number | null
+          municipal_registration: string | null
+          neighborhood: string | null
+          nfce_series: number | null
+          nfe_series: number | null
+          phone: string | null
+          state: string | null
+          state_registration: string | null
+          tax_regime: string | null
+          trade_name: string | null
+          updated_at: string | null
+          user_id: string
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          address_number?: string | null
+          certificate_password?: string | null
+          certificate_valid_until?: string | null
+          city?: string | null
+          cnpj?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          environment?: string | null
+          id?: string
+          last_nfce_number?: number | null
+          last_nfe_number?: number | null
+          municipal_registration?: string | null
+          neighborhood?: string | null
+          nfce_series?: number | null
+          nfe_series?: number | null
+          phone?: string | null
+          state?: string | null
+          state_registration?: string | null
+          tax_regime?: string | null
+          trade_name?: string | null
+          updated_at?: string | null
+          user_id: string
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          address_number?: string | null
+          certificate_password?: string | null
+          certificate_valid_until?: string | null
+          city?: string | null
+          cnpj?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          environment?: string | null
+          id?: string
+          last_nfce_number?: number | null
+          last_nfe_number?: number | null
+          municipal_registration?: string | null
+          neighborhood?: string | null
+          nfce_series?: number | null
+          nfe_series?: number | null
+          phone?: string | null
+          state?: string | null
+          state_registration?: string | null
+          tax_regime?: string | null
+          trade_name?: string | null
+          updated_at?: string | null
+          user_id?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -164,10 +248,209 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_items: {
+        Row: {
+          cest_code: string | null
+          cfop: string | null
+          cofins_cst: string | null
+          cofins_rate: number | null
+          created_at: string | null
+          discount: number | null
+          icms_cst: string | null
+          icms_origin: string | null
+          icms_rate: number | null
+          id: string
+          invoice_id: string
+          ncm_code: string | null
+          pis_cst: string | null
+          pis_rate: number | null
+          product_code: string | null
+          product_id: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          cest_code?: string | null
+          cfop?: string | null
+          cofins_cst?: string | null
+          cofins_rate?: number | null
+          created_at?: string | null
+          discount?: number | null
+          icms_cst?: string | null
+          icms_origin?: string | null
+          icms_rate?: number | null
+          id?: string
+          invoice_id: string
+          ncm_code?: string | null
+          pis_cst?: string | null
+          pis_rate?: number | null
+          product_code?: string | null
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit?: string | null
+          unit_price: number
+        }
+        Update: {
+          cest_code?: string | null
+          cfop?: string | null
+          cofins_cst?: string | null
+          cofins_rate?: number | null
+          created_at?: string | null
+          discount?: number | null
+          icms_cst?: string | null
+          icms_origin?: string | null
+          icms_rate?: number | null
+          id?: string
+          invoice_id?: string
+          ncm_code?: string | null
+          pis_cst?: string | null
+          pis_rate?: number | null
+          product_code?: string | null
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          access_key: string | null
+          authorization_date: string | null
+          cancellation_date: string | null
+          cancellation_reason: string | null
+          cfop: string | null
+          cofins_value: number | null
+          created_at: string | null
+          customer_address: string | null
+          customer_cnpj: string | null
+          customer_cpf: string | null
+          customer_name: string | null
+          danfe_url: string | null
+          icms_base: number | null
+          icms_rate: number | null
+          icms_value: number | null
+          id: string
+          invoice_number: number | null
+          invoice_type: string
+          ncm_code: string | null
+          pis_value: number | null
+          protocol_number: string | null
+          qrcode_url: string | null
+          sale_id: string | null
+          series: number | null
+          status: string | null
+          total_discount: number | null
+          total_invoice: number | null
+          total_products: number | null
+          updated_at: string | null
+          user_id: string
+          xml_content: string | null
+        }
+        Insert: {
+          access_key?: string | null
+          authorization_date?: string | null
+          cancellation_date?: string | null
+          cancellation_reason?: string | null
+          cfop?: string | null
+          cofins_value?: number | null
+          created_at?: string | null
+          customer_address?: string | null
+          customer_cnpj?: string | null
+          customer_cpf?: string | null
+          customer_name?: string | null
+          danfe_url?: string | null
+          icms_base?: number | null
+          icms_rate?: number | null
+          icms_value?: number | null
+          id?: string
+          invoice_number?: number | null
+          invoice_type?: string
+          ncm_code?: string | null
+          pis_value?: number | null
+          protocol_number?: string | null
+          qrcode_url?: string | null
+          sale_id?: string | null
+          series?: number | null
+          status?: string | null
+          total_discount?: number | null
+          total_invoice?: number | null
+          total_products?: number | null
+          updated_at?: string | null
+          user_id: string
+          xml_content?: string | null
+        }
+        Update: {
+          access_key?: string | null
+          authorization_date?: string | null
+          cancellation_date?: string | null
+          cancellation_reason?: string | null
+          cfop?: string | null
+          cofins_value?: number | null
+          created_at?: string | null
+          customer_address?: string | null
+          customer_cnpj?: string | null
+          customer_cpf?: string | null
+          customer_name?: string | null
+          danfe_url?: string | null
+          icms_base?: number | null
+          icms_rate?: number | null
+          icms_value?: number | null
+          id?: string
+          invoice_number?: number | null
+          invoice_type?: string
+          ncm_code?: string | null
+          pis_value?: number | null
+          protocol_number?: string | null
+          qrcode_url?: string | null
+          sale_id?: string | null
+          series?: number | null
+          status?: string | null
+          total_discount?: number | null
+          total_invoice?: number | null
+          total_products?: number | null
+          updated_at?: string | null
+          user_id?: string
+          xml_content?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           barcode: string | null
           category_id: string | null
+          cest_code: string | null
+          cfop: string | null
           cost_price: number | null
           created_at: string | null
           description: string | null
@@ -175,6 +458,7 @@ export type Database = {
           is_active: boolean | null
           min_stock: number | null
           name: string
+          ncm_code: string | null
           sale_price: number | null
           stock_quantity: number | null
           unit: string | null
@@ -184,6 +468,8 @@ export type Database = {
         Insert: {
           barcode?: string | null
           category_id?: string | null
+          cest_code?: string | null
+          cfop?: string | null
           cost_price?: number | null
           created_at?: string | null
           description?: string | null
@@ -191,6 +477,7 @@ export type Database = {
           is_active?: boolean | null
           min_stock?: number | null
           name: string
+          ncm_code?: string | null
           sale_price?: number | null
           stock_quantity?: number | null
           unit?: string | null
@@ -200,6 +487,8 @@ export type Database = {
         Update: {
           barcode?: string | null
           category_id?: string | null
+          cest_code?: string | null
+          cfop?: string | null
           cost_price?: number | null
           created_at?: string | null
           description?: string | null
@@ -207,6 +496,7 @@ export type Database = {
           is_active?: boolean | null
           min_stock?: number | null
           name?: string
+          ncm_code?: string | null
           sale_price?: number | null
           stock_quantity?: number | null
           unit?: string | null

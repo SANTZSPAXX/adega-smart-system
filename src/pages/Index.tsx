@@ -1,18 +1,62 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Store } from "lucide-react";
+import { Phone } from "lucide-react";
+import techcontrolLogo from "@/assets/techcontrol-logo.png";
 
 const Index = () => {
   const navigate = useNavigate();
+  
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="text-center space-y-6">
-        <div className="inline-flex items-center justify-center p-4 bg-primary/10 rounded-2xl">
-          <Store className="h-16 w-16 text-primary" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a1929] via-[#0d2137] to-[#0a1929] relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+      </div>
+      
+      {/* Content */}
+      <div className="relative z-10 text-center space-y-8 px-4">
+        {/* Logo */}
+        <div className="flex justify-center">
+          <img 
+            src={techcontrolLogo} 
+            alt="TechControl Logo" 
+            className="w-64 h-64 object-contain drop-shadow-2xl"
+          />
         </div>
-        <h1 className="text-4xl font-bold">Adega PDV</h1>
-        <p className="text-muted-foreground">Sistema de Gestão Comercial</p>
-        <Button size="lg" onClick={() => navigate('/auth')}>Acessar Sistema</Button>
+        
+        {/* Title */}
+        <div className="space-y-2">
+          <h1 className="text-4xl md:text-5xl font-bold">
+            <span className="text-[#1e88e5]">TECH</span>
+            <span className="text-[#4dd0e1]">CONTROL</span>
+          </h1>
+          <p className="text-lg text-[#4dd0e1]/80 tracking-widest uppercase">Sistema de Comanda</p>
+        </div>
+        
+        {/* Access Button */}
+        <Button 
+          size="lg" 
+          onClick={() => navigate('/auth')}
+          className="bg-gradient-to-r from-[#1e88e5] to-[#4dd0e1] hover:from-[#1565c0] hover:to-[#26c6da] text-white font-semibold px-10 py-6 text-lg rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl transition-all duration-300"
+        >
+          Acessar Sistema
+        </Button>
+        
+        {/* Contact Info */}
+        <div className="pt-8 space-y-3">
+          <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+            <Phone className="h-5 w-5 text-[#4dd0e1]" />
+            <span className="text-white/90 font-medium">Para comprar acesso completo:</span>
+            <span className="text-[#4dd0e1] font-bold">(11) 95661-4601</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Footer */}
+      <div className="absolute bottom-6 text-center text-white/40 text-sm">
+        <p>© 2024 TechControl - Todos os direitos reservados</p>
       </div>
     </div>
   );

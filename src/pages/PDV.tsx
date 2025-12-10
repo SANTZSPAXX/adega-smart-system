@@ -268,15 +268,15 @@ export default function PDV() {
 
             {/* Customer Select */}
             <Select
-              value={selectedCustomer?.id || ''}
-              onValueChange={(value) => setSelectedCustomer(customers.find(c => c.id === value) || null)}
+              value={selectedCustomer?.id || 'none'}
+              onValueChange={(value) => setSelectedCustomer(value === 'none' ? null : customers.find(c => c.id === value) || null)}
             >
               <SelectTrigger className="w-full">
                 <User className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Selecionar cliente (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sem cliente</SelectItem>
+                <SelectItem value="none">Sem cliente</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     {customer.name}

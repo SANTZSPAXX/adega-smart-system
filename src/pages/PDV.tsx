@@ -500,6 +500,48 @@ export default function PDV() {
           });
       }
 
+      // Update cash register sales
+      const { data: openRegister } = await supabase
+        .from('cash_register')
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('status', 'open')
+        .maybeSingle();
+
+      if (openRegister) {
+        let updateFields: Record<string, number> = {};
+        const saleTotal = total;
+
+        if (paymentMethod === 'dinheiro') {
+          updateFields = { cash_sales: (openRegister.cash_sales || 0) + saleTotal };
+        } else if (paymentMethod === 'pix') {
+          updateFields = { pix_sales: (openRegister.pix_sales || 0) + saleTotal };
+        } else if (paymentMethod === 'cartao_credito' || paymentMethod === 'cartao_debito') {
+          updateFields = { card_sales: (openRegister.card_sales || 0) + saleTotal };
+        } else if (paymentMethod === 'dinheiro_cartao') {
+          const cashPart = cashOrPixAmount;
+          const cardPart = cardAmountValue;
+          updateFields = {
+            cash_sales: (openRegister.cash_sales || 0) + cashPart,
+            card_sales: (openRegister.card_sales || 0) + cardPart,
+          };
+        } else if (paymentMethod === 'pix_cartao') {
+          const pixPart = cashOrPixAmount;
+          const cardPart = cardAmountValue;
+          updateFields = {
+            pix_sales: (openRegister.pix_sales || 0) + pixPart,
+            card_sales: (openRegister.card_sales || 0) + cardPart,
+          };
+        }
+
+        if (Object.keys(updateFields).length > 0) {
+          await supabase
+            .from('cash_register')
+            .update(updateFields)
+            .eq('id', openRegister.id);
+        }
+      }
+
       // Update discount usage count
       if (appliedDiscount) {
         await supabase

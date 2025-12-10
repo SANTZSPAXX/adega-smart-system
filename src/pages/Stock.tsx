@@ -14,11 +14,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Product, StockMovement } from '@/types/database';
-import { Plus, Minus, ArrowUpDown, Package, TrendingUp, TrendingDown, Search, Barcode, FileText } from 'lucide-react';
+import { Plus, Minus, ArrowUpDown, Package, TrendingUp, TrendingDown, Search, Barcode, FileText, Trash2 } from 'lucide-react';
 import { generateStockPDF, downloadPDF } from '@/utils/pdfGenerator';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useRef } from 'react';
 
 export default function Stock() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ export default function Stock() {
   const [showQuickAddDialog, setShowQuickAddDialog] = useState(false);
   const [movementType, setMovementType] = useState<'entrada' | 'saida'>('entrada');
   const [loading, setLoading] = useState(false);
+  const lastDataHash = useRef<string>('');
   
   const [movementForm, setMovementForm] = useState({
     product_id: '',
@@ -50,21 +52,77 @@ export default function Stock() {
     }
   }, [user]);
 
-  const fetchProducts = async () => {
+  // Real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('stock-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => fetchProducts(true)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_movements' },
+        () => fetchMovements(true)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchProducts = async (silent = false) => {
     const { data } = await supabase
       .from('products')
       .select('*')
       .order('name');
-    if (data) setProducts(data as Product[]);
+    
+    if (data) {
+      const hash = JSON.stringify(data.map(p => p.id + p.stock_quantity));
+      if (hash !== lastDataHash.current || !silent) {
+        lastDataHash.current = hash;
+        setProducts(data as Product[]);
+      }
+    }
   };
 
-  const fetchMovements = async () => {
+  const fetchMovements = async (silent = false) => {
     const { data } = await supabase
       .from('stock_movements')
       .select('*, product:products(name)')
       .order('created_at', { ascending: false })
       .limit(100);
-    if (data) setMovements(data as StockMovement[]);
+    if (data && !silent) setMovements(data as StockMovement[]);
+  };
+
+  const deleteStockMovement = async (productId: string) => {
+    if (!confirm('Tem certeza que deseja zerar o estoque deste produto?')) return;
+    
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    try {
+      // Create a stock adjustment to zero
+      await supabase
+        .from('stock_movements')
+        .insert({
+          user_id: user!.id,
+          product_id: productId,
+          movement_type: 'ajuste',
+          quantity: product.stock_quantity,
+          previous_stock: product.stock_quantity,
+          new_stock: 0,
+          reason: 'Estoque zerado manualmente',
+        });
+      
+      toast({ title: 'Estoque zerado com sucesso!' });
+      fetchProducts();
+      fetchMovements();
+    } catch (error: any) {
+      toast({ title: 'Erro ao zerar estoque', description: error.message, variant: 'destructive' });
+    }
   };
 
   const filteredProducts = products.filter(p =>
@@ -316,6 +374,14 @@ export default function Stock() {
                               >
                                 <Minus className="h-4 w-4 mr-1" />
                                 Saída
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => deleteStockMovement(product.id)}
+                                title="Zerar estoque"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
                           </TableCell>

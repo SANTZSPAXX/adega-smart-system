@@ -15,7 +15,8 @@ import {
   FileText,
   Percent,
   Wallet,
-  History
+  History,
+  CalendarClock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +30,7 @@ const navItems = [
   { title: 'Histórico Vendas', url: '/sales-history', icon: History },
   { title: 'Produtos', url: '/products', icon: Package },
   { title: 'Estoque', url: '/stock', icon: ArrowUpDown },
+  { title: 'Vencimentos', url: '/expiration', icon: CalendarClock },
   { title: 'Clientes', url: '/customers', icon: Users },
   { title: 'Descontos', url: '/discounts', icon: Percent },
   { title: 'Configurações', url: '/settings', icon: Settings },

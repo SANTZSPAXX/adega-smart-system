@@ -20,6 +20,7 @@ const CashRegister = lazy(() => import("./pages/CashRegister"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Discounts = lazy(() => import("./pages/Discounts"));
+const Expiration = lazy(() => import("./pages/Expiration"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -74,6 +75,7 @@ function AppRoutes() {
         <Route path="/cash-register" element={<ProtectedRoute><CashRegister /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/discounts" element={<ProtectedRoute><Discounts /></ProtectedRoute>} />
+        <Route path="/expiration" element={<ProtectedRoute><Expiration /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

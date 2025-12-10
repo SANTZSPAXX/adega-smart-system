@@ -511,6 +511,7 @@ export type Database = {
           cost_price: number | null
           created_at: string | null
           description: string | null
+          expiration_date: string | null
           id: string
           is_active: boolean | null
           min_stock: number | null
@@ -530,6 +531,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           description?: string | null
+          expiration_date?: string | null
           id?: string
           is_active?: boolean | null
           min_stock?: number | null
@@ -549,6 +551,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           description?: string | null
+          expiration_date?: string | null
           id?: string
           is_active?: boolean | null
           min_stock?: number | null

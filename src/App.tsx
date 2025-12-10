@@ -15,6 +15,8 @@ import Invoices from "./pages/Invoices";
 import Financial from "./pages/Financial";
 import Reports from "./pages/Reports";
 import AdminUsers from "./pages/AdminUsers";
+import Settings from "./pages/Settings";
+import Discounts from "./pages/Discounts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +44,8 @@ function AppRoutes() {
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/financial" element={<ProtectedRoute><Financial /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/discounts" element={<ProtectedRoute><Discounts /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

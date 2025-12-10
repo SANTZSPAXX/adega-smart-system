@@ -99,7 +99,7 @@ export default function Financial() {
 
   const exportToExcel = () => {
     const data = filteredTransactions.map(t => ({
-      'Tipo': t.type === 'income' ? 'Receita' : 'Despesa',
+      'Tipo': t.type === 'receita' ? 'Receita' : 'Despesa',
       'Categoria': t.category,
       'Descrição': t.description || '',
       'Valor': t.amount,

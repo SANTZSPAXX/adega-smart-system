@@ -38,7 +38,8 @@ import {
   Phone,
   Barcode,
   Tag,
-  QrCode
+  QrCode,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import techcontrolLogo from '@/assets/techcontrol-logo.png';
@@ -712,21 +713,33 @@ export default function PDV() {
                   onClick={() => addToCart(product)}
                   disabled={product.stock_quantity <= 0}
                   className={cn(
-                    "p-4 rounded-xl border text-left transition-all duration-200 hover:shadow-lg hover:border-primary/50 hover:-translate-y-1",
+                    "p-3 rounded-xl border text-left transition-all duration-200 hover:shadow-lg hover:border-primary/50 hover:-translate-y-1",
                     product.stock_quantity <= 0
                       ? "bg-muted opacity-60 cursor-not-allowed"
                       : "bg-card hover:bg-secondary/50"
                   )}
                 >
+                  {/* Product Image */}
+                  <div className="w-full aspect-square rounded-lg bg-secondary mb-2 overflow-hidden flex items-center justify-center">
+                    {product.image_url ? (
+                      <img 
+                        src={product.image_url} 
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package className="h-10 w-10 text-muted-foreground/50" />
+                    )}
+                  </div>
                   {product.barcode && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                       <Barcode className="h-3 w-3" />
-                      <span>{product.barcode}</span>
+                      <span className="truncate">{product.barcode}</span>
                     </div>
                   )}
-                  <p className="font-medium text-sm text-foreground line-clamp-2 mb-2">{product.name}</p>
-                  <p className="text-xl font-bold text-primary font-mono">{formatCurrency(Number(product.sale_price))}</p>
-                  <div className="flex items-center justify-between mt-2">
+                  <p className="font-medium text-sm text-foreground line-clamp-2 mb-1">{product.name}</p>
+                  <p className="text-lg font-bold text-primary font-mono">{formatCurrency(Number(product.sale_price))}</p>
+                  <div className="flex items-center justify-between mt-1">
                     <span className={cn(
                       "text-xs",
                       product.stock_quantity <= product.min_stock ? "text-destructive font-semibold" : "text-muted-foreground"
@@ -810,6 +823,18 @@ export default function PDV() {
               <div className="space-y-3">
                 {cart.map((item) => (
                   <div key={item.product.id} className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                    {/* Cart item image */}
+                    <div className="h-10 w-10 rounded-lg bg-secondary overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {item.product.image_url ? (
+                        <img 
+                          src={item.product.image_url} 
+                          alt={item.product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Package className="h-5 w-5 text-muted-foreground/50" />
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.product.name}</p>
                       <p className="text-xs text-muted-foreground font-mono">

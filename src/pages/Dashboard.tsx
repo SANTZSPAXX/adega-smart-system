@@ -23,6 +23,7 @@ export default function Dashboard() {
     salesCount: 0,
     avgTicket: 0,
     todaySalesCount: 0,
+    totalProfit: 0,
   });
   const [salesByDay, setSalesByDay] = useState<any[]>([]);
   const [salesByHour, setSalesByHour] = useState<any[]>([]);
@@ -72,6 +73,31 @@ export default function Dashboard() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'completed');
 
+      // Fetch sale items with product cost for profit calculation
+      const { data: allSaleItems } = await supabase
+        .from('sale_items')
+        .select('product_id, quantity, total_price, unit_price');
+      
+      // Fetch products for cost price lookup
+      const { data: allProducts } = await supabase
+        .from('products')
+        .select('id, cost_price');
+      
+      // Create a map of product costs
+      const productCostMap: Record<string, number> = {};
+      allProducts?.forEach(p => {
+        productCostMap[p.id] = Number(p.cost_price) || 0;
+      });
+      
+      // Calculate total profit
+      let totalProfit = 0;
+      allSaleItems?.forEach(item => {
+        const costPrice = item.product_id ? productCostMap[item.product_id] || 0 : 0;
+        const totalCost = costPrice * item.quantity;
+        const itemProfit = Number(item.total_price) - totalCost;
+        totalProfit += itemProfit;
+      });
+
       // Calculate stats
       const todayTotal = todaySalesData?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
       const monthTotal = monthSalesData?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0;
@@ -89,6 +115,7 @@ export default function Dashboard() {
         salesCount: salesCount || 0,
         avgTicket,
         todaySalesCount,
+        totalProfit,
       });
 
       // Fetch sales by day (last 7 days)
@@ -250,7 +277,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           <StatCard
             title="Vendas Hoje"
             value={formatCurrency(stats.todaySales)}
@@ -258,13 +285,19 @@ export default function Dashboard() {
             variant="primary"
           />
           <StatCard
-            title="Vendas do Mês"
+            title="Vendas Mês"
             value={formatCurrency(stats.monthSales)}
             icon={TrendingUp}
             variant="success"
           />
           <StatCard
-            title="Vendas Hoje"
+            title="Lucro Total"
+            value={formatCurrency(stats.totalProfit)}
+            icon={TrendingUp}
+            variant={stats.totalProfit > 0 ? 'success' : 'destructive'}
+          />
+          <StatCard
+            title="Qtd Hoje"
             value={stats.todaySalesCount}
             icon={ShoppingCart}
             variant="default"
@@ -288,7 +321,7 @@ export default function Dashboard() {
             variant="default"
           />
           <StatCard
-            title="Estoque Baixo"
+            title="Est. Baixo"
             value={stats.lowStockProducts}
             icon={AlertTriangle}
             variant={stats.lowStockProducts > 0 ? 'warning' : 'default'}

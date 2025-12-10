@@ -36,12 +36,12 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, variant = 
       "stat-card animate-fade-in",
       variantStyles[variant]
     )}>
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-1 min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
+          <p className="text-lg font-bold text-foreground truncate">{value}</p>
           {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           )}
           {trend && (
             <p className={cn(

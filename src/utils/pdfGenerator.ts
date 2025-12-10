@@ -1,16 +1,8 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { Invoice, CartItem, Sale, SaleItem } from '@/types/database';
+import autoTable from 'jspdf-autotable';
+import { Invoice, CartItem, Sale, SaleItem, Product } from '@/types/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-// Extend jsPDF type for autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -126,6 +118,8 @@ export const generateReceiptPDF = (
     cartao_credito: 'Cartão de Crédito',
     cartao_debito: 'Cartão de Débito',
     pix: 'PIX',
+    'dinheiro_cartao': 'Dinheiro + Cartão',
+    'pix_cartao': 'PIX + Cartão',
   };
   doc.text(`Pagamento: ${paymentLabels[sale.payment_method] || sale.payment_method}`, 5, y);
   y += 6;
@@ -198,15 +192,6 @@ export const generateInvoicePDF = (
 
   doc.text('Data de Emissão:', leftCol, y);
   doc.text(format(new Date(invoice.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }), leftCol + 40, y);
-  
-  doc.text('Status:', rightCol, y);
-  const statusLabels: Record<string, string> = {
-    pending: 'Pendente',
-    authorized: 'Autorizada',
-    cancelled: 'Cancelada',
-    denied: 'Rejeitada',
-  };
-  doc.text(statusLabels[invoice.status] || invoice.status, rightCol + 20, y);
   y += 6;
 
   if (invoice.authorization_date) {
@@ -242,7 +227,7 @@ export const generateInvoicePDF = (
 
   // Items table
   if (invoice.items && invoice.items.length > 0) {
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Produto', 'Qtd', 'Preço Unit.', 'Total']],
       body: invoice.items.map(item => [
@@ -268,7 +253,7 @@ export const generateInvoicePDF = (
       },
     });
 
-    y = doc.lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // Totals
@@ -305,6 +290,183 @@ export const generateInvoicePDF = (
   doc.text('Sistema desenvolvido por TechControl - WhatsApp: (11) 95661-4601', pageWidth / 2, y, { align: 'center' });
   y += 4;
   doc.text('www.techcontrol.com.br', pageWidth / 2, y, { align: 'center' });
+
+  return doc;
+};
+
+export const generateStockPDF = (
+  products: Product[],
+  companyName: string = 'TechControl PDV'
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 15;
+
+  // Header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(12);
+  doc.text('Relatório de Estoque Atual', pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth / 2, y, { align: 'center' });
+  y += 10;
+
+  // Table
+  autoTable(doc, {
+    startY: y,
+    head: [['Produto', 'Código', 'Estoque', 'Mínimo', 'Preço Venda', 'Valor em Estoque']],
+    body: products.map(product => [
+      product.name,
+      product.barcode || '-',
+      product.stock_quantity.toString(),
+      product.min_stock.toString(),
+      formatCurrency(Number(product.sale_price) || 0),
+      formatCurrency((Number(product.sale_price) || 0) * product.stock_quantity),
+    ]),
+    theme: 'striped',
+    headStyles: {
+      fillColor: [0, 150, 136],
+      textColor: 255,
+      fontStyle: 'bold',
+    },
+    styles: {
+      fontSize: 8,
+    },
+    columnStyles: {
+      0: { cellWidth: 50 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 30, halign: 'right' },
+      5: { cellWidth: 35, halign: 'right' },
+    },
+  });
+
+  y = (doc as any).lastAutoTable.finalY + 10;
+
+  // Summary
+  const totalItems = products.reduce((sum, p) => sum + p.stock_quantity, 0);
+  const totalValue = products.reduce((sum, p) => sum + ((Number(p.sale_price) || 0) * p.stock_quantity), 0);
+  const lowStockCount = products.filter(p => p.stock_quantity <= p.min_stock).length;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Resumo:', 14, y);
+  y += 6;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total de Produtos: ${products.length}`, 14, y);
+  doc.text(`Itens em Estoque: ${totalItems}`, pageWidth / 2, y);
+  y += 5;
+  doc.text(`Valor Total em Estoque: ${formatCurrency(totalValue)}`, 14, y);
+  doc.text(`Produtos com Estoque Baixo: ${lowStockCount}`, pageWidth / 2, y);
+  y += 10;
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Sistema desenvolvido por TechControl - WhatsApp: (11) 95661-4601', pageWidth / 2, y, { align: 'center' });
+
+  return doc;
+};
+
+export const generateSalesReportPDF = (
+  sales: Array<{
+    id: string;
+    created_at: string;
+    total: number;
+    payment_method: string;
+    items: Array<{ product_name: string; quantity: number; total_price: number }>;
+  }>,
+  companyName: string = 'TechControl PDV'
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 15;
+
+  // Header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(12);
+  doc.text('Relatório de Vendas', pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageWidth / 2, y, { align: 'center' });
+  y += 10;
+
+  // Sales table
+  const paymentLabels: Record<string, string> = {
+    dinheiro: 'Dinheiro',
+    cartao_credito: 'Crédito',
+    cartao_debito: 'Débito',
+    pix: 'PIX',
+    'dinheiro_cartao': 'Dinheiro+Cartão',
+    'pix_cartao': 'PIX+Cartão',
+  };
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Data', 'Venda', 'Itens', 'Pagamento', 'Total']],
+    body: sales.map(sale => [
+      format(new Date(sale.created_at), "dd/MM/yy HH:mm", { locale: ptBR }),
+      `#${sale.id.substring(0, 8)}`,
+      sale.items.length.toString(),
+      paymentLabels[sale.payment_method] || sale.payment_method,
+      formatCurrency(sale.total),
+    ]),
+    theme: 'striped',
+    headStyles: {
+      fillColor: [0, 150, 136],
+      textColor: 255,
+      fontStyle: 'bold',
+    },
+    styles: {
+      fontSize: 8,
+    },
+    columnStyles: {
+      0: { cellWidth: 35 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 35 },
+      4: { cellWidth: 35, halign: 'right' },
+    },
+  });
+
+  y = (doc as any).lastAutoTable.finalY + 10;
+
+  // Summary
+  const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
+  const totalItems = sales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Resumo:', 14, y);
+  y += 6;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total de Vendas: ${sales.length}`, 14, y);
+  doc.text(`Itens Vendidos: ${totalItems}`, pageWidth / 2, y);
+  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Valor Total: ${formatCurrency(totalSales)}`, 14, y);
+  y += 10;
+
+  // Footer
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Sistema desenvolvido por TechControl - WhatsApp: (11) 95661-4601', pageWidth / 2, y, { align: 'center' });
 
   return doc;
 };

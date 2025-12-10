@@ -14,7 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Product, StockMovement } from '@/types/database';
-import { Plus, Minus, ArrowUpDown, Package, TrendingUp, TrendingDown, Search, Barcode } from 'lucide-react';
+import { Plus, Minus, ArrowUpDown, Package, TrendingUp, TrendingDown, Search, Barcode, FileText } from 'lucide-react';
+import { generateStockPDF, downloadPDF } from '@/utils/pdfGenerator';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,12 @@ export default function Stock() {
   );
 
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.min_stock);
+
+  const handlePrintStock = () => {
+    const doc = generateStockPDF(products);
+    downloadPDF(doc, `estoque_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+    toast({ title: 'PDF gerado com sucesso!' });
+  };
 
   const openMovementDialog = (type: 'entrada' | 'saida', productId?: string) => {
     setMovementType(type);
@@ -190,6 +197,10 @@ export default function Stock() {
             <p className="text-muted-foreground">Gerencie entradas e saídas de produtos</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handlePrintStock}>
+              <FileText className="h-4 w-4 mr-2" />
+              Imprimir Estoque
+            </Button>
             <Button variant="outline" onClick={() => setShowQuickAddDialog(true)}>
               <Barcode className="h-4 w-4 mr-2" />
               Entrada por EAN
